@@ -138,6 +138,18 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     type: DriftSqlType.dateTime,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _updatedAtMsMeta = const VerificationMeta(
+    'updatedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+    'updated_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -152,6 +164,7 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
     archived,
     sortOrder,
     deletedAt,
+    updatedAtMs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -250,6 +263,15 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         deletedAt.isAcceptableOrUnknown(data['deleted_at']!, _deletedAtMeta),
       );
     }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+        _updatedAtMsMeta,
+        updatedAtMs.isAcceptableOrUnknown(
+          data['updated_at_ms']!,
+          _updatedAtMsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -307,6 +329,10 @@ class $HabitsTable extends Habits with TableInfo<$HabitsTable, Habit> {
         DriftSqlType.dateTime,
         data['${effectivePrefix}deleted_at'],
       ),
+      updatedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at_ms'],
+      )!,
     );
   }
 
@@ -329,6 +355,7 @@ class Habit extends DataClass implements Insertable<Habit> {
   final bool archived;
   final int sortOrder;
   final DateTime? deletedAt;
+  final int updatedAtMs;
   const Habit({
     required this.id,
     required this.name,
@@ -342,6 +369,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     required this.archived,
     required this.sortOrder,
     this.deletedAt,
+    required this.updatedAtMs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -366,6 +394,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     if (!nullToAbsent || deletedAt != null) {
       map['deleted_at'] = Variable<DateTime>(deletedAt);
     }
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
     return map;
   }
 
@@ -389,6 +418,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       deletedAt: deletedAt == null && nullToAbsent
           ? const Value.absent()
           : Value(deletedAt),
+      updatedAtMs: Value(updatedAtMs),
     );
   }
 
@@ -410,6 +440,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       archived: serializer.fromJson<bool>(json['archived']),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
     );
   }
   @override
@@ -428,6 +459,7 @@ class Habit extends DataClass implements Insertable<Habit> {
       'archived': serializer.toJson<bool>(archived),
       'sortOrder': serializer.toJson<int>(sortOrder),
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
     };
   }
 
@@ -444,6 +476,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     bool? archived,
     int? sortOrder,
     Value<DateTime?> deletedAt = const Value.absent(),
+    int? updatedAtMs,
   }) => Habit(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -457,6 +490,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     archived: archived ?? this.archived,
     sortOrder: sortOrder ?? this.sortOrder,
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
+    updatedAtMs: updatedAtMs ?? this.updatedAtMs,
   );
   Habit copyWithCompanion(HabitsCompanion data) {
     return Habit(
@@ -478,6 +512,9 @@ class Habit extends DataClass implements Insertable<Habit> {
       archived: data.archived.present ? data.archived.value : this.archived,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
+      updatedAtMs: data.updatedAtMs.present
+          ? data.updatedAtMs.value
+          : this.updatedAtMs,
     );
   }
 
@@ -495,7 +532,8 @@ class Habit extends DataClass implements Insertable<Habit> {
           ..write('createdAt: $createdAt, ')
           ..write('archived: $archived, ')
           ..write('sortOrder: $sortOrder, ')
-          ..write('deletedAt: $deletedAt')
+          ..write('deletedAt: $deletedAt, ')
+          ..write('updatedAtMs: $updatedAtMs')
           ..write(')'))
         .toString();
   }
@@ -514,6 +552,7 @@ class Habit extends DataClass implements Insertable<Habit> {
     archived,
     sortOrder,
     deletedAt,
+    updatedAtMs,
   );
   @override
   bool operator ==(Object other) =>
@@ -530,7 +569,8 @@ class Habit extends DataClass implements Insertable<Habit> {
           other.createdAt == this.createdAt &&
           other.archived == this.archived &&
           other.sortOrder == this.sortOrder &&
-          other.deletedAt == this.deletedAt);
+          other.deletedAt == this.deletedAt &&
+          other.updatedAtMs == this.updatedAtMs);
 }
 
 class HabitsCompanion extends UpdateCompanion<Habit> {
@@ -546,6 +586,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
   final Value<bool> archived;
   final Value<int> sortOrder;
   final Value<DateTime?> deletedAt;
+  final Value<int> updatedAtMs;
   final Value<int> rowid;
   const HabitsCompanion({
     this.id = const Value.absent(),
@@ -560,6 +601,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.archived = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   HabitsCompanion.insert({
@@ -575,6 +617,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     this.archived = const Value.absent(),
     this.sortOrder = const Value.absent(),
     this.deletedAt = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -594,6 +637,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Expression<bool>? archived,
     Expression<int>? sortOrder,
     Expression<DateTime>? deletedAt,
+    Expression<int>? updatedAtMs,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -609,6 +653,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       if (archived != null) 'archived': archived,
       if (sortOrder != null) 'sort_order': sortOrder,
       if (deletedAt != null) 'deleted_at': deletedAt,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -626,6 +671,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     Value<bool>? archived,
     Value<int>? sortOrder,
     Value<DateTime?>? deletedAt,
+    Value<int>? updatedAtMs,
     Value<int>? rowid,
   }) {
     return HabitsCompanion(
@@ -641,6 +687,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
       archived: archived ?? this.archived,
       sortOrder: sortOrder ?? this.sortOrder,
       deletedAt: deletedAt ?? this.deletedAt,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -684,6 +731,9 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
     if (deletedAt.present) {
       map['deleted_at'] = Variable<DateTime>(deletedAt.value);
     }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -705,6 +755,7 @@ class HabitsCompanion extends UpdateCompanion<Habit> {
           ..write('archived: $archived, ')
           ..write('sortOrder: $sortOrder, ')
           ..write('deletedAt: $deletedAt, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -794,6 +845,33 @@ class $HabitEntriesTable extends HabitEntries
     type: DriftSqlType.dateTime,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _updatedAtMsMeta = const VerificationMeta(
+    'updatedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+    'updated_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -803,6 +881,8 @@ class $HabitEntriesTable extends HabitEntries
     completed,
     note,
     createdAt,
+    deleted,
+    updatedAtMs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -863,6 +943,21 @@ class $HabitEntriesTable extends HabitEntries
     } else if (isInserting) {
       context.missing(_createdAtMeta);
     }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+        _updatedAtMsMeta,
+        updatedAtMs.isAcceptableOrUnknown(
+          data['updated_at_ms']!,
+          _updatedAtMsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -900,6 +995,14 @@ class $HabitEntriesTable extends HabitEntries
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
       )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      updatedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at_ms'],
+      )!,
     );
   }
 
@@ -917,6 +1020,8 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
   final bool completed;
   final String? note;
   final DateTime createdAt;
+  final bool deleted;
+  final int updatedAtMs;
   const HabitEntry({
     required this.id,
     required this.habitId,
@@ -925,6 +1030,8 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
     required this.completed,
     this.note,
     required this.createdAt,
+    required this.deleted,
+    required this.updatedAtMs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -938,6 +1045,8 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
       map['note'] = Variable<String>(note);
     }
     map['created_at'] = Variable<DateTime>(createdAt);
+    map['deleted'] = Variable<bool>(deleted);
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
     return map;
   }
 
@@ -950,6 +1059,8 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
       completed: Value(completed),
       note: note == null && nullToAbsent ? const Value.absent() : Value(note),
       createdAt: Value(createdAt),
+      deleted: Value(deleted),
+      updatedAtMs: Value(updatedAtMs),
     );
   }
 
@@ -966,6 +1077,8 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
       completed: serializer.fromJson<bool>(json['completed']),
       note: serializer.fromJson<String?>(json['note']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
     );
   }
   @override
@@ -979,6 +1092,8 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
       'completed': serializer.toJson<bool>(completed),
       'note': serializer.toJson<String?>(note),
       'createdAt': serializer.toJson<DateTime>(createdAt),
+      'deleted': serializer.toJson<bool>(deleted),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
     };
   }
 
@@ -990,6 +1105,8 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
     bool? completed,
     Value<String?> note = const Value.absent(),
     DateTime? createdAt,
+    bool? deleted,
+    int? updatedAtMs,
   }) => HabitEntry(
     id: id ?? this.id,
     habitId: habitId ?? this.habitId,
@@ -998,6 +1115,8 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
     completed: completed ?? this.completed,
     note: note.present ? note.value : this.note,
     createdAt: createdAt ?? this.createdAt,
+    deleted: deleted ?? this.deleted,
+    updatedAtMs: updatedAtMs ?? this.updatedAtMs,
   );
   HabitEntry copyWithCompanion(HabitEntriesCompanion data) {
     return HabitEntry(
@@ -1008,6 +1127,10 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
       completed: data.completed.present ? data.completed.value : this.completed,
       note: data.note.present ? data.note.value : this.note,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      updatedAtMs: data.updatedAtMs.present
+          ? data.updatedAtMs.value
+          : this.updatedAtMs,
     );
   }
 
@@ -1020,14 +1143,25 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
           ..write('value: $value, ')
           ..write('completed: $completed, ')
           ..write('note: $note, ')
-          ..write('createdAt: $createdAt')
+          ..write('createdAt: $createdAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, habitId, date, value, completed, note, createdAt);
+  int get hashCode => Object.hash(
+    id,
+    habitId,
+    date,
+    value,
+    completed,
+    note,
+    createdAt,
+    deleted,
+    updatedAtMs,
+  );
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1038,7 +1172,9 @@ class HabitEntry extends DataClass implements Insertable<HabitEntry> {
           other.value == this.value &&
           other.completed == this.completed &&
           other.note == this.note &&
-          other.createdAt == this.createdAt);
+          other.createdAt == this.createdAt &&
+          other.deleted == this.deleted &&
+          other.updatedAtMs == this.updatedAtMs);
 }
 
 class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
@@ -1049,6 +1185,8 @@ class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
   final Value<bool> completed;
   final Value<String?> note;
   final Value<DateTime> createdAt;
+  final Value<bool> deleted;
+  final Value<int> updatedAtMs;
   final Value<int> rowid;
   const HabitEntriesCompanion({
     this.id = const Value.absent(),
@@ -1058,6 +1196,8 @@ class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
     this.completed = const Value.absent(),
     this.note = const Value.absent(),
     this.createdAt = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   HabitEntriesCompanion.insert({
@@ -1068,6 +1208,8 @@ class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
     this.completed = const Value.absent(),
     this.note = const Value.absent(),
     required DateTime createdAt,
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        habitId = Value(habitId),
@@ -1081,6 +1223,8 @@ class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
     Expression<bool>? completed,
     Expression<String>? note,
     Expression<DateTime>? createdAt,
+    Expression<bool>? deleted,
+    Expression<int>? updatedAtMs,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1091,6 +1235,8 @@ class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
       if (completed != null) 'completed': completed,
       if (note != null) 'note': note,
       if (createdAt != null) 'created_at': createdAt,
+      if (deleted != null) 'deleted': deleted,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1103,6 +1249,8 @@ class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
     Value<bool>? completed,
     Value<String?>? note,
     Value<DateTime>? createdAt,
+    Value<bool>? deleted,
+    Value<int>? updatedAtMs,
     Value<int>? rowid,
   }) {
     return HabitEntriesCompanion(
@@ -1113,6 +1261,8 @@ class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
       completed: completed ?? this.completed,
       note: note ?? this.note,
       createdAt: createdAt ?? this.createdAt,
+      deleted: deleted ?? this.deleted,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1141,6 +1291,12 @@ class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1157,6 +1313,8 @@ class HabitEntriesCompanion extends UpdateCompanion<HabitEntry> {
           ..write('completed: $completed, ')
           ..write('note: $note, ')
           ..write('createdAt: $createdAt, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1290,6 +1448,33 @@ class $ChallengesTable extends Challenges
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _updatedAtMsMeta = const VerificationMeta(
+    'updatedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+    'updated_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -1303,6 +1488,8 @@ class $ChallengesTable extends Challenges
     iconCodePoint,
     createdAt,
     archived,
+    deleted,
+    updatedAtMs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -1400,6 +1587,21 @@ class $ChallengesTable extends Challenges
         archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
       );
     }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+        _updatedAtMsMeta,
+        updatedAtMs.isAcceptableOrUnknown(
+          data['updated_at_ms']!,
+          _updatedAtMsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1453,6 +1655,14 @@ class $ChallengesTable extends Challenges
         DriftSqlType.bool,
         data['${effectivePrefix}archived'],
       )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      updatedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at_ms'],
+      )!,
     );
   }
 
@@ -1474,6 +1684,8 @@ class Challenge extends DataClass implements Insertable<Challenge> {
   final int? iconCodePoint;
   final DateTime createdAt;
   final bool archived;
+  final bool deleted;
+  final int updatedAtMs;
   const Challenge({
     required this.id,
     required this.name,
@@ -1486,6 +1698,8 @@ class Challenge extends DataClass implements Insertable<Challenge> {
     this.iconCodePoint,
     required this.createdAt,
     required this.archived,
+    required this.deleted,
+    required this.updatedAtMs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1505,6 +1719,8 @@ class Challenge extends DataClass implements Insertable<Challenge> {
     }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['archived'] = Variable<bool>(archived);
+    map['deleted'] = Variable<bool>(deleted);
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
     return map;
   }
 
@@ -1525,6 +1741,8 @@ class Challenge extends DataClass implements Insertable<Challenge> {
           : Value(iconCodePoint),
       createdAt: Value(createdAt),
       archived: Value(archived),
+      deleted: Value(deleted),
+      updatedAtMs: Value(updatedAtMs),
     );
   }
 
@@ -1545,6 +1763,8 @@ class Challenge extends DataClass implements Insertable<Challenge> {
       iconCodePoint: serializer.fromJson<int?>(json['iconCodePoint']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       archived: serializer.fromJson<bool>(json['archived']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
     );
   }
   @override
@@ -1562,6 +1782,8 @@ class Challenge extends DataClass implements Insertable<Challenge> {
       'iconCodePoint': serializer.toJson<int?>(iconCodePoint),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'archived': serializer.toJson<bool>(archived),
+      'deleted': serializer.toJson<bool>(deleted),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
     };
   }
 
@@ -1577,6 +1799,8 @@ class Challenge extends DataClass implements Insertable<Challenge> {
     Value<int?> iconCodePoint = const Value.absent(),
     DateTime? createdAt,
     bool? archived,
+    bool? deleted,
+    int? updatedAtMs,
   }) => Challenge(
     id: id ?? this.id,
     name: name ?? this.name,
@@ -1591,6 +1815,8 @@ class Challenge extends DataClass implements Insertable<Challenge> {
         : this.iconCodePoint,
     createdAt: createdAt ?? this.createdAt,
     archived: archived ?? this.archived,
+    deleted: deleted ?? this.deleted,
+    updatedAtMs: updatedAtMs ?? this.updatedAtMs,
   );
   Challenge copyWithCompanion(ChallengesCompanion data) {
     return Challenge(
@@ -1613,6 +1839,10 @@ class Challenge extends DataClass implements Insertable<Challenge> {
           : this.iconCodePoint,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       archived: data.archived.present ? data.archived.value : this.archived,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      updatedAtMs: data.updatedAtMs.present
+          ? data.updatedAtMs.value
+          : this.updatedAtMs,
     );
   }
 
@@ -1629,7 +1859,9 @@ class Challenge extends DataClass implements Insertable<Challenge> {
           ..write('colorValue: $colorValue, ')
           ..write('iconCodePoint: $iconCodePoint, ')
           ..write('createdAt: $createdAt, ')
-          ..write('archived: $archived')
+          ..write('archived: $archived, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs')
           ..write(')'))
         .toString();
   }
@@ -1647,6 +1879,8 @@ class Challenge extends DataClass implements Insertable<Challenge> {
     iconCodePoint,
     createdAt,
     archived,
+    deleted,
+    updatedAtMs,
   );
   @override
   bool operator ==(Object other) =>
@@ -1662,7 +1896,9 @@ class Challenge extends DataClass implements Insertable<Challenge> {
           other.colorValue == this.colorValue &&
           other.iconCodePoint == this.iconCodePoint &&
           other.createdAt == this.createdAt &&
-          other.archived == this.archived);
+          other.archived == this.archived &&
+          other.deleted == this.deleted &&
+          other.updatedAtMs == this.updatedAtMs);
 }
 
 class ChallengesCompanion extends UpdateCompanion<Challenge> {
@@ -1677,6 +1913,8 @@ class ChallengesCompanion extends UpdateCompanion<Challenge> {
   final Value<int?> iconCodePoint;
   final Value<DateTime> createdAt;
   final Value<bool> archived;
+  final Value<bool> deleted;
+  final Value<int> updatedAtMs;
   final Value<int> rowid;
   const ChallengesCompanion({
     this.id = const Value.absent(),
@@ -1690,6 +1928,8 @@ class ChallengesCompanion extends UpdateCompanion<Challenge> {
     this.iconCodePoint = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.archived = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChallengesCompanion.insert({
@@ -1704,6 +1944,8 @@ class ChallengesCompanion extends UpdateCompanion<Challenge> {
     this.iconCodePoint = const Value.absent(),
     required DateTime createdAt,
     this.archived = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        name = Value(name),
@@ -1723,6 +1965,8 @@ class ChallengesCompanion extends UpdateCompanion<Challenge> {
     Expression<int>? iconCodePoint,
     Expression<DateTime>? createdAt,
     Expression<bool>? archived,
+    Expression<bool>? deleted,
+    Expression<int>? updatedAtMs,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -1737,6 +1981,8 @@ class ChallengesCompanion extends UpdateCompanion<Challenge> {
       if (iconCodePoint != null) 'icon_code_point': iconCodePoint,
       if (createdAt != null) 'created_at': createdAt,
       if (archived != null) 'archived': archived,
+      if (deleted != null) 'deleted': deleted,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -1753,6 +1999,8 @@ class ChallengesCompanion extends UpdateCompanion<Challenge> {
     Value<int?>? iconCodePoint,
     Value<DateTime>? createdAt,
     Value<bool>? archived,
+    Value<bool>? deleted,
+    Value<int>? updatedAtMs,
     Value<int>? rowid,
   }) {
     return ChallengesCompanion(
@@ -1767,6 +2015,8 @@ class ChallengesCompanion extends UpdateCompanion<Challenge> {
       iconCodePoint: iconCodePoint ?? this.iconCodePoint,
       createdAt: createdAt ?? this.createdAt,
       archived: archived ?? this.archived,
+      deleted: deleted ?? this.deleted,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -1807,6 +2057,12 @@ class ChallengesCompanion extends UpdateCompanion<Challenge> {
     if (archived.present) {
       map['archived'] = Variable<bool>(archived.value);
     }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -1827,6 +2083,8 @@ class ChallengesCompanion extends UpdateCompanion<Challenge> {
           ..write('iconCodePoint: $iconCodePoint, ')
           ..write('createdAt: $createdAt, ')
           ..write('archived: $archived, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1891,8 +2149,42 @@ class $ChallengeHabitsTable extends ChallengeHabits
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, challengeId, habitId, mandatory];
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _updatedAtMsMeta = const VerificationMeta(
+    'updatedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+    'updated_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    challengeId,
+    habitId,
+    mandatory,
+    deleted,
+    updatedAtMs,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1935,6 +2227,21 @@ class $ChallengeHabitsTable extends ChallengeHabits
         mandatory.isAcceptableOrUnknown(data['mandatory']!, _mandatoryMeta),
       );
     }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+        _updatedAtMsMeta,
+        updatedAtMs.isAcceptableOrUnknown(
+          data['updated_at_ms']!,
+          _updatedAtMsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -1960,6 +2267,14 @@ class $ChallengeHabitsTable extends ChallengeHabits
         DriftSqlType.bool,
         data['${effectivePrefix}mandatory'],
       )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      updatedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at_ms'],
+      )!,
     );
   }
 
@@ -1974,11 +2289,15 @@ class ChallengeHabit extends DataClass implements Insertable<ChallengeHabit> {
   final String challengeId;
   final String habitId;
   final bool mandatory;
+  final bool deleted;
+  final int updatedAtMs;
   const ChallengeHabit({
     required this.id,
     required this.challengeId,
     required this.habitId,
     required this.mandatory,
+    required this.deleted,
+    required this.updatedAtMs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1987,6 +2306,8 @@ class ChallengeHabit extends DataClass implements Insertable<ChallengeHabit> {
     map['challenge_id'] = Variable<String>(challengeId);
     map['habit_id'] = Variable<String>(habitId);
     map['mandatory'] = Variable<bool>(mandatory);
+    map['deleted'] = Variable<bool>(deleted);
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
     return map;
   }
 
@@ -1996,6 +2317,8 @@ class ChallengeHabit extends DataClass implements Insertable<ChallengeHabit> {
       challengeId: Value(challengeId),
       habitId: Value(habitId),
       mandatory: Value(mandatory),
+      deleted: Value(deleted),
+      updatedAtMs: Value(updatedAtMs),
     );
   }
 
@@ -2009,6 +2332,8 @@ class ChallengeHabit extends DataClass implements Insertable<ChallengeHabit> {
       challengeId: serializer.fromJson<String>(json['challengeId']),
       habitId: serializer.fromJson<String>(json['habitId']),
       mandatory: serializer.fromJson<bool>(json['mandatory']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
     );
   }
   @override
@@ -2019,6 +2344,8 @@ class ChallengeHabit extends DataClass implements Insertable<ChallengeHabit> {
       'challengeId': serializer.toJson<String>(challengeId),
       'habitId': serializer.toJson<String>(habitId),
       'mandatory': serializer.toJson<bool>(mandatory),
+      'deleted': serializer.toJson<bool>(deleted),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
     };
   }
 
@@ -2027,11 +2354,15 @@ class ChallengeHabit extends DataClass implements Insertable<ChallengeHabit> {
     String? challengeId,
     String? habitId,
     bool? mandatory,
+    bool? deleted,
+    int? updatedAtMs,
   }) => ChallengeHabit(
     id: id ?? this.id,
     challengeId: challengeId ?? this.challengeId,
     habitId: habitId ?? this.habitId,
     mandatory: mandatory ?? this.mandatory,
+    deleted: deleted ?? this.deleted,
+    updatedAtMs: updatedAtMs ?? this.updatedAtMs,
   );
   ChallengeHabit copyWithCompanion(ChallengeHabitsCompanion data) {
     return ChallengeHabit(
@@ -2041,6 +2372,10 @@ class ChallengeHabit extends DataClass implements Insertable<ChallengeHabit> {
           : this.challengeId,
       habitId: data.habitId.present ? data.habitId.value : this.habitId,
       mandatory: data.mandatory.present ? data.mandatory.value : this.mandatory,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      updatedAtMs: data.updatedAtMs.present
+          ? data.updatedAtMs.value
+          : this.updatedAtMs,
     );
   }
 
@@ -2050,13 +2385,16 @@ class ChallengeHabit extends DataClass implements Insertable<ChallengeHabit> {
           ..write('id: $id, ')
           ..write('challengeId: $challengeId, ')
           ..write('habitId: $habitId, ')
-          ..write('mandatory: $mandatory')
+          ..write('mandatory: $mandatory, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, challengeId, habitId, mandatory);
+  int get hashCode =>
+      Object.hash(id, challengeId, habitId, mandatory, deleted, updatedAtMs);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2064,7 +2402,9 @@ class ChallengeHabit extends DataClass implements Insertable<ChallengeHabit> {
           other.id == this.id &&
           other.challengeId == this.challengeId &&
           other.habitId == this.habitId &&
-          other.mandatory == this.mandatory);
+          other.mandatory == this.mandatory &&
+          other.deleted == this.deleted &&
+          other.updatedAtMs == this.updatedAtMs);
 }
 
 class ChallengeHabitsCompanion extends UpdateCompanion<ChallengeHabit> {
@@ -2072,12 +2412,16 @@ class ChallengeHabitsCompanion extends UpdateCompanion<ChallengeHabit> {
   final Value<String> challengeId;
   final Value<String> habitId;
   final Value<bool> mandatory;
+  final Value<bool> deleted;
+  final Value<int> updatedAtMs;
   final Value<int> rowid;
   const ChallengeHabitsCompanion({
     this.id = const Value.absent(),
     this.challengeId = const Value.absent(),
     this.habitId = const Value.absent(),
     this.mandatory = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ChallengeHabitsCompanion.insert({
@@ -2085,6 +2429,8 @@ class ChallengeHabitsCompanion extends UpdateCompanion<ChallengeHabit> {
     required String challengeId,
     required String habitId,
     this.mandatory = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        challengeId = Value(challengeId),
@@ -2094,6 +2440,8 @@ class ChallengeHabitsCompanion extends UpdateCompanion<ChallengeHabit> {
     Expression<String>? challengeId,
     Expression<String>? habitId,
     Expression<bool>? mandatory,
+    Expression<bool>? deleted,
+    Expression<int>? updatedAtMs,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2101,6 +2449,8 @@ class ChallengeHabitsCompanion extends UpdateCompanion<ChallengeHabit> {
       if (challengeId != null) 'challenge_id': challengeId,
       if (habitId != null) 'habit_id': habitId,
       if (mandatory != null) 'mandatory': mandatory,
+      if (deleted != null) 'deleted': deleted,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2110,6 +2460,8 @@ class ChallengeHabitsCompanion extends UpdateCompanion<ChallengeHabit> {
     Value<String>? challengeId,
     Value<String>? habitId,
     Value<bool>? mandatory,
+    Value<bool>? deleted,
+    Value<int>? updatedAtMs,
     Value<int>? rowid,
   }) {
     return ChallengeHabitsCompanion(
@@ -2117,6 +2469,8 @@ class ChallengeHabitsCompanion extends UpdateCompanion<ChallengeHabit> {
       challengeId: challengeId ?? this.challengeId,
       habitId: habitId ?? this.habitId,
       mandatory: mandatory ?? this.mandatory,
+      deleted: deleted ?? this.deleted,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2136,6 +2490,12 @@ class ChallengeHabitsCompanion extends UpdateCompanion<ChallengeHabit> {
     if (mandatory.present) {
       map['mandatory'] = Variable<bool>(mandatory.value);
     }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2149,6 +2509,8 @@ class ChallengeHabitsCompanion extends UpdateCompanion<ChallengeHabit> {
           ..write('challengeId: $challengeId, ')
           ..write('habitId: $habitId, ')
           ..write('mandatory: $mandatory, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2253,6 +2615,33 @@ class $JournalEntriesTable extends JournalEntries
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _updatedAtMsMeta = const VerificationMeta(
+    'updatedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+    'updated_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -2264,6 +2653,8 @@ class $JournalEntriesTable extends JournalEntries
     createdAt,
     updatedAt,
     archived,
+    deleted,
+    updatedAtMs,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -2340,6 +2731,21 @@ class $JournalEntriesTable extends JournalEntries
         archived.isAcceptableOrUnknown(data['archived']!, _archivedMeta),
       );
     }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+        _updatedAtMsMeta,
+        updatedAtMs.isAcceptableOrUnknown(
+          data['updated_at_ms']!,
+          _updatedAtMsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2385,6 +2791,14 @@ class $JournalEntriesTable extends JournalEntries
         DriftSqlType.bool,
         data['${effectivePrefix}archived'],
       )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      updatedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at_ms'],
+      )!,
     );
   }
 
@@ -2404,6 +2818,8 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool archived;
+  final bool deleted;
+  final int updatedAtMs;
   const JournalEntry({
     required this.id,
     required this.kind,
@@ -2414,6 +2830,8 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
     required this.createdAt,
     required this.updatedAt,
     required this.archived,
+    required this.deleted,
+    required this.updatedAtMs,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -2429,6 +2847,8 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
     map['created_at'] = Variable<DateTime>(createdAt);
     map['updated_at'] = Variable<DateTime>(updatedAt);
     map['archived'] = Variable<bool>(archived);
+    map['deleted'] = Variable<bool>(deleted);
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
     return map;
   }
 
@@ -2445,6 +2865,8 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
       createdAt: Value(createdAt),
       updatedAt: Value(updatedAt),
       archived: Value(archived),
+      deleted: Value(deleted),
+      updatedAtMs: Value(updatedAtMs),
     );
   }
 
@@ -2463,6 +2885,8 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
       archived: serializer.fromJson<bool>(json['archived']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
     );
   }
   @override
@@ -2478,6 +2902,8 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime>(updatedAt),
       'archived': serializer.toJson<bool>(archived),
+      'deleted': serializer.toJson<bool>(deleted),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
     };
   }
 
@@ -2491,6 +2917,8 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? archived,
+    bool? deleted,
+    int? updatedAtMs,
   }) => JournalEntry(
     id: id ?? this.id,
     kind: kind ?? this.kind,
@@ -2501,6 +2929,8 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt ?? this.updatedAt,
     archived: archived ?? this.archived,
+    deleted: deleted ?? this.deleted,
+    updatedAtMs: updatedAtMs ?? this.updatedAtMs,
   );
   JournalEntry copyWithCompanion(JournalEntriesCompanion data) {
     return JournalEntry(
@@ -2513,6 +2943,10 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
       archived: data.archived.present ? data.archived.value : this.archived,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      updatedAtMs: data.updatedAtMs.present
+          ? data.updatedAtMs.value
+          : this.updatedAtMs,
     );
   }
 
@@ -2527,7 +2961,9 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
           ..write('mac: $mac, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
-          ..write('archived: $archived')
+          ..write('archived: $archived, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs')
           ..write(')'))
         .toString();
   }
@@ -2543,6 +2979,8 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
     createdAt,
     updatedAt,
     archived,
+    deleted,
+    updatedAtMs,
   );
   @override
   bool operator ==(Object other) =>
@@ -2556,7 +2994,9 @@ class JournalEntry extends DataClass implements Insertable<JournalEntry> {
           $driftBlobEquality.equals(other.mac, this.mac) &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt &&
-          other.archived == this.archived);
+          other.archived == this.archived &&
+          other.deleted == this.deleted &&
+          other.updatedAtMs == this.updatedAtMs);
 }
 
 class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
@@ -2569,6 +3009,8 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
   final Value<DateTime> createdAt;
   final Value<DateTime> updatedAt;
   final Value<bool> archived;
+  final Value<bool> deleted;
+  final Value<int> updatedAtMs;
   final Value<int> rowid;
   const JournalEntriesCompanion({
     this.id = const Value.absent(),
@@ -2580,6 +3022,8 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.archived = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   JournalEntriesCompanion.insert({
@@ -2592,6 +3036,8 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
     required DateTime createdAt,
     required DateTime updatedAt,
     this.archived = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        cipher = Value(cipher),
@@ -2609,6 +3055,8 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
     Expression<bool>? archived,
+    Expression<bool>? deleted,
+    Expression<int>? updatedAtMs,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -2621,6 +3069,8 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (archived != null) 'archived': archived,
+      if (deleted != null) 'deleted': deleted,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2635,6 +3085,8 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
     Value<DateTime>? createdAt,
     Value<DateTime>? updatedAt,
     Value<bool>? archived,
+    Value<bool>? deleted,
+    Value<int>? updatedAtMs,
     Value<int>? rowid,
   }) {
     return JournalEntriesCompanion(
@@ -2647,6 +3099,8 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       archived: archived ?? this.archived,
+      deleted: deleted ?? this.deleted,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2681,6 +3135,12 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
     if (archived.present) {
       map['archived'] = Variable<bool>(archived.value);
     }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2699,6 +3159,8 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('archived: $archived, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2729,8 +3191,20 @@ class $KeyValuesTable extends KeyValues
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _updatedAtMsMeta = const VerificationMeta(
+    'updatedAtMs',
+  );
   @override
-  List<GeneratedColumn> get $columns => [key, value];
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+    'updated_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [key, value, updatedAtMs];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -2759,6 +3233,15 @@ class $KeyValuesTable extends KeyValues
     } else if (isInserting) {
       context.missing(_valueMeta);
     }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+        _updatedAtMsMeta,
+        updatedAtMs.isAcceptableOrUnknown(
+          data['updated_at_ms']!,
+          _updatedAtMsMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -2776,6 +3259,10 @@ class $KeyValuesTable extends KeyValues
         DriftSqlType.string,
         data['${effectivePrefix}value'],
       )!,
+      updatedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at_ms'],
+      )!,
     );
   }
 
@@ -2788,17 +3275,27 @@ class $KeyValuesTable extends KeyValues
 class KeyValue extends DataClass implements Insertable<KeyValue> {
   final String key;
   final String value;
-  const KeyValue({required this.key, required this.value});
+  final int updatedAtMs;
+  const KeyValue({
+    required this.key,
+    required this.value,
+    required this.updatedAtMs,
+  });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
     map['key'] = Variable<String>(key);
     map['value'] = Variable<String>(value);
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
     return map;
   }
 
   KeyValuesCompanion toCompanion(bool nullToAbsent) {
-    return KeyValuesCompanion(key: Value(key), value: Value(value));
+    return KeyValuesCompanion(
+      key: Value(key),
+      value: Value(value),
+      updatedAtMs: Value(updatedAtMs),
+    );
   }
 
   factory KeyValue.fromJson(
@@ -2809,6 +3306,7 @@ class KeyValue extends DataClass implements Insertable<KeyValue> {
     return KeyValue(
       key: serializer.fromJson<String>(json['key']),
       value: serializer.fromJson<String>(json['value']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
     );
   }
   @override
@@ -2817,15 +3315,22 @@ class KeyValue extends DataClass implements Insertable<KeyValue> {
     return <String, dynamic>{
       'key': serializer.toJson<String>(key),
       'value': serializer.toJson<String>(value),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
     };
   }
 
-  KeyValue copyWith({String? key, String? value}) =>
-      KeyValue(key: key ?? this.key, value: value ?? this.value);
+  KeyValue copyWith({String? key, String? value, int? updatedAtMs}) => KeyValue(
+    key: key ?? this.key,
+    value: value ?? this.value,
+    updatedAtMs: updatedAtMs ?? this.updatedAtMs,
+  );
   KeyValue copyWithCompanion(KeyValuesCompanion data) {
     return KeyValue(
       key: data.key.present ? data.key.value : this.key,
       value: data.value.present ? data.value.value : this.value,
+      updatedAtMs: data.updatedAtMs.present
+          ? data.updatedAtMs.value
+          : this.updatedAtMs,
     );
   }
 
@@ -2833,42 +3338,51 @@ class KeyValue extends DataClass implements Insertable<KeyValue> {
   String toString() {
     return (StringBuffer('KeyValue(')
           ..write('key: $key, ')
-          ..write('value: $value')
+          ..write('value: $value, ')
+          ..write('updatedAtMs: $updatedAtMs')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(key, value);
+  int get hashCode => Object.hash(key, value, updatedAtMs);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      (other is KeyValue && other.key == this.key && other.value == this.value);
+      (other is KeyValue &&
+          other.key == this.key &&
+          other.value == this.value &&
+          other.updatedAtMs == this.updatedAtMs);
 }
 
 class KeyValuesCompanion extends UpdateCompanion<KeyValue> {
   final Value<String> key;
   final Value<String> value;
+  final Value<int> updatedAtMs;
   final Value<int> rowid;
   const KeyValuesCompanion({
     this.key = const Value.absent(),
     this.value = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   KeyValuesCompanion.insert({
     required String key,
     required String value,
+    this.updatedAtMs = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : key = Value(key),
        value = Value(value);
   static Insertable<KeyValue> custom({
     Expression<String>? key,
     Expression<String>? value,
+    Expression<int>? updatedAtMs,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
       if (key != null) 'key': key,
       if (value != null) 'value': value,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -2876,11 +3390,13 @@ class KeyValuesCompanion extends UpdateCompanion<KeyValue> {
   KeyValuesCompanion copyWith({
     Value<String>? key,
     Value<String>? value,
+    Value<int>? updatedAtMs,
     Value<int>? rowid,
   }) {
     return KeyValuesCompanion(
       key: key ?? this.key,
       value: value ?? this.value,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -2894,6 +3410,9 @@ class KeyValuesCompanion extends UpdateCompanion<KeyValue> {
     if (value.present) {
       map['value'] = Variable<String>(value.value);
     }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -2905,6 +3424,7 @@ class KeyValuesCompanion extends UpdateCompanion<KeyValue> {
     return (StringBuffer('KeyValuesCompanion(')
           ..write('key: $key, ')
           ..write('value: $value, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -2974,6 +3494,7 @@ typedef $$HabitsTableCreateCompanionBuilder =
       Value<bool> archived,
       Value<int> sortOrder,
       Value<DateTime?> deletedAt,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 typedef $$HabitsTableUpdateCompanionBuilder =
@@ -2990,6 +3511,7 @@ typedef $$HabitsTableUpdateCompanionBuilder =
       Value<bool> archived,
       Value<int> sortOrder,
       Value<DateTime?> deletedAt,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 
@@ -3102,6 +3624,11 @@ class $$HabitsTableFilterComposer
 
   ColumnFilters<DateTime> get deletedAt => $composableBuilder(
     column: $table.deletedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3224,6 +3751,11 @@ class $$HabitsTableOrderingComposer
     column: $table.deletedAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$HabitsTableAnnotationComposer
@@ -3276,6 +3808,11 @@ class $$HabitsTableAnnotationComposer
 
   GeneratedColumn<DateTime> get deletedAt =>
       $composableBuilder(column: $table.deletedAt, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => column,
+  );
 
   Expression<T> habitEntriesRefs<T extends Object>(
     Expression<T> Function($$HabitEntriesTableAnnotationComposer a) f,
@@ -3371,6 +3908,7 @@ class $$HabitsTableTableManager
                 Value<bool> archived = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitsCompanion(
                 id: id,
@@ -3385,6 +3923,7 @@ class $$HabitsTableTableManager
                 archived: archived,
                 sortOrder: sortOrder,
                 deletedAt: deletedAt,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3401,6 +3940,7 @@ class $$HabitsTableTableManager
                 Value<bool> archived = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
                 Value<DateTime?> deletedAt = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitsCompanion.insert(
                 id: id,
@@ -3415,6 +3955,7 @@ class $$HabitsTableTableManager
                 archived: archived,
                 sortOrder: sortOrder,
                 deletedAt: deletedAt,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -3507,6 +4048,8 @@ typedef $$HabitEntriesTableCreateCompanionBuilder =
       Value<bool> completed,
       Value<String?> note,
       required DateTime createdAt,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 typedef $$HabitEntriesTableUpdateCompanionBuilder =
@@ -3518,6 +4061,8 @@ typedef $$HabitEntriesTableUpdateCompanionBuilder =
       Value<bool> completed,
       Value<String?> note,
       Value<DateTime> createdAt,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 
@@ -3579,6 +4124,16 @@ class $$HabitEntriesTableFilterComposer
 
   ColumnFilters<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3645,6 +4200,16 @@ class $$HabitEntriesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$HabitsTableOrderingComposer get habitId {
     final $$HabitsTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -3695,6 +4260,14 @@ class $$HabitEntriesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => column,
+  );
 
   $$HabitsTableAnnotationComposer get habitId {
     final $$HabitsTableAnnotationComposer composer = $composerBuilder(
@@ -3755,6 +4328,8 @@ class $$HabitEntriesTableTableManager
                 Value<bool> completed = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitEntriesCompanion(
                 id: id,
@@ -3764,6 +4339,8 @@ class $$HabitEntriesTableTableManager
                 completed: completed,
                 note: note,
                 createdAt: createdAt,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -3775,6 +4352,8 @@ class $$HabitEntriesTableTableManager
                 Value<bool> completed = const Value.absent(),
                 Value<String?> note = const Value.absent(),
                 required DateTime createdAt,
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => HabitEntriesCompanion.insert(
                 id: id,
@@ -3784,6 +4363,8 @@ class $$HabitEntriesTableTableManager
                 completed: completed,
                 note: note,
                 createdAt: createdAt,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -3866,6 +4447,8 @@ typedef $$ChallengesTableCreateCompanionBuilder =
       Value<int?> iconCodePoint,
       required DateTime createdAt,
       Value<bool> archived,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 typedef $$ChallengesTableUpdateCompanionBuilder =
@@ -3881,6 +4464,8 @@ typedef $$ChallengesTableUpdateCompanionBuilder =
       Value<int?> iconCodePoint,
       Value<DateTime> createdAt,
       Value<bool> archived,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 
@@ -3973,6 +4558,16 @@ class $$ChallengesTableFilterComposer
     builder: (column) => ColumnFilters(column),
   );
 
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+
   Expression<bool> challengeHabitsRefs(
     Expression<bool> Function($$ChallengeHabitsTableFilterComposer f) f,
   ) {
@@ -4062,6 +4657,16 @@ class $$ChallengesTableOrderingComposer
     column: $table.archived,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ChallengesTableAnnotationComposer
@@ -4113,6 +4718,14 @@ class $$ChallengesTableAnnotationComposer
 
   GeneratedColumn<bool> get archived =>
       $composableBuilder(column: $table.archived, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => column,
+  );
 
   Expression<T> challengeHabitsRefs<T extends Object>(
     Expression<T> Function($$ChallengeHabitsTableAnnotationComposer a) f,
@@ -4179,6 +4792,8 @@ class $$ChallengesTableTableManager
                 Value<int?> iconCodePoint = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChallengesCompanion(
                 id: id,
@@ -4192,6 +4807,8 @@ class $$ChallengesTableTableManager
                 iconCodePoint: iconCodePoint,
                 createdAt: createdAt,
                 archived: archived,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4207,6 +4824,8 @@ class $$ChallengesTableTableManager
                 Value<int?> iconCodePoint = const Value.absent(),
                 required DateTime createdAt,
                 Value<bool> archived = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChallengesCompanion.insert(
                 id: id,
@@ -4220,6 +4839,8 @@ class $$ChallengesTableTableManager
                 iconCodePoint: iconCodePoint,
                 createdAt: createdAt,
                 archived: archived,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4288,6 +4909,8 @@ typedef $$ChallengeHabitsTableCreateCompanionBuilder =
       required String challengeId,
       required String habitId,
       Value<bool> mandatory,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 typedef $$ChallengeHabitsTableUpdateCompanionBuilder =
@@ -4296,6 +4919,8 @@ typedef $$ChallengeHabitsTableUpdateCompanionBuilder =
       Value<String> challengeId,
       Value<String> habitId,
       Value<bool> mandatory,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 
@@ -4359,6 +4984,16 @@ class $$ChallengeHabitsTableFilterComposer
 
   ColumnFilters<bool> get mandatory => $composableBuilder(
     column: $table.mandatory,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -4428,6 +5063,16 @@ class $$ChallengeHabitsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   $$ChallengesTableOrderingComposer get challengeId {
     final $$ChallengesTableOrderingComposer composer = $composerBuilder(
       composer: this,
@@ -4489,6 +5134,14 @@ class $$ChallengeHabitsTableAnnotationComposer
 
   GeneratedColumn<bool> get mandatory =>
       $composableBuilder(column: $table.mandatory, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => column,
+  );
 
   $$ChallengesTableAnnotationComposer get challengeId {
     final $$ChallengesTableAnnotationComposer composer = $composerBuilder(
@@ -4571,12 +5224,16 @@ class $$ChallengeHabitsTableTableManager
                 Value<String> challengeId = const Value.absent(),
                 Value<String> habitId = const Value.absent(),
                 Value<bool> mandatory = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChallengeHabitsCompanion(
                 id: id,
                 challengeId: challengeId,
                 habitId: habitId,
                 mandatory: mandatory,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4585,12 +5242,16 @@ class $$ChallengeHabitsTableTableManager
                 required String challengeId,
                 required String habitId,
                 Value<bool> mandatory = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ChallengeHabitsCompanion.insert(
                 id: id,
                 challengeId: challengeId,
                 habitId: habitId,
                 mandatory: mandatory,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4688,6 +5349,8 @@ typedef $$JournalEntriesTableCreateCompanionBuilder =
       required DateTime createdAt,
       required DateTime updatedAt,
       Value<bool> archived,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 typedef $$JournalEntriesTableUpdateCompanionBuilder =
@@ -4701,6 +5364,8 @@ typedef $$JournalEntriesTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<DateTime> updatedAt,
       Value<bool> archived,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 
@@ -4755,6 +5420,16 @@ class $$JournalEntriesTableFilterComposer
 
   ColumnFilters<bool> get archived => $composableBuilder(
     column: $table.archived,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -4812,6 +5487,16 @@ class $$JournalEntriesTableOrderingComposer
     column: $table.archived,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$JournalEntriesTableAnnotationComposer
@@ -4849,6 +5534,14 @@ class $$JournalEntriesTableAnnotationComposer
 
   GeneratedColumn<bool> get archived =>
       $composableBuilder(column: $table.archived, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => column,
+  );
 }
 
 class $$JournalEntriesTableTableManager
@@ -4893,6 +5586,8 @@ class $$JournalEntriesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime> updatedAt = const Value.absent(),
                 Value<bool> archived = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => JournalEntriesCompanion(
                 id: id,
@@ -4904,6 +5599,8 @@ class $$JournalEntriesTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 archived: archived,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -4917,6 +5614,8 @@ class $$JournalEntriesTableTableManager
                 required DateTime createdAt,
                 required DateTime updatedAt,
                 Value<bool> archived = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => JournalEntriesCompanion.insert(
                 id: id,
@@ -4928,6 +5627,8 @@ class $$JournalEntriesTableTableManager
                 createdAt: createdAt,
                 updatedAt: updatedAt,
                 archived: archived,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
@@ -4959,12 +5660,14 @@ typedef $$KeyValuesTableCreateCompanionBuilder =
     KeyValuesCompanion Function({
       required String key,
       required String value,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 typedef $$KeyValuesTableUpdateCompanionBuilder =
     KeyValuesCompanion Function({
       Value<String> key,
       Value<String> value,
+      Value<int> updatedAtMs,
       Value<int> rowid,
     });
 
@@ -4984,6 +5687,11 @@ class $$KeyValuesTableFilterComposer
 
   ColumnFilters<String> get value => $composableBuilder(
     column: $table.value,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -5006,6 +5714,11 @@ class $$KeyValuesTableOrderingComposer
     column: $table.value,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$KeyValuesTableAnnotationComposer
@@ -5022,6 +5735,11 @@ class $$KeyValuesTableAnnotationComposer
 
   GeneratedColumn<String> get value =>
       $composableBuilder(column: $table.value, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => column,
+  );
 }
 
 class $$KeyValuesTableTableManager
@@ -5054,16 +5772,24 @@ class $$KeyValuesTableTableManager
               ({
                 Value<String> key = const Value.absent(),
                 Value<String> value = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
-              }) => KeyValuesCompanion(key: key, value: value, rowid: rowid),
+              }) => KeyValuesCompanion(
+                key: key,
+                value: value,
+                updatedAtMs: updatedAtMs,
+                rowid: rowid,
+              ),
           createCompanionCallback:
               ({
                 required String key,
                 required String value,
+                Value<int> updatedAtMs = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => KeyValuesCompanion.insert(
                 key: key,
                 value: value,
+                updatedAtMs: updatedAtMs,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

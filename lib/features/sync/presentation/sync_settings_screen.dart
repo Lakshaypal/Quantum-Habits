@@ -6,11 +6,15 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/aurora_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/neo_block.dart';
-import '../application/sync_service.dart';
+import '../../habits/application/habit_providers.dart' show databaseProvider;
+import '../application/sync_engine.dart';
 
 const _ok = Color(0xFF34D399);
+const _warn = Color(0xFFFBBF24);
 const _err = Color(0xFFE5484D);
 
+/// Google Drive sync: connect once, then everything syncs on its own — every
+/// edit pushes within seconds, other devices' changes pull automatically.
 class SyncSettingsScreen extends ConsumerStatefulWidget {
   const SyncSettingsScreen({super.key});
   @override
@@ -18,172 +22,79 @@ class SyncSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
-  final _url = TextEditingController();
-  final _anon = TextEditingController();
-  final _email = TextEditingController();
-  final _password = TextEditingController();
-  final _passphrase = TextEditingController();
+  final _clientId = TextEditingController();
+  final _clientSecret = TextEditingController();
   bool _busy = false;
-  String? _msg;
-  bool _msgIsError = false;
+  String? _localError;
 
   @override
   void initState() {
     super.initState();
-    _passphrase.text = ref.read(syncPassphraseProvider) ?? '';
-    // Try to bring up Supabase from any saved config.
-    ref.read(syncServiceProvider).ensureInitialized().then((_) {
-      if (mounted) setState(() {});
+    ref.read(databaseProvider).getKV('gdrive_client_id').then((v) {
+      if (mounted && v != null && _clientId.text.isEmpty) {
+        setState(() => _clientId.text = v);
+      }
     });
   }
 
   @override
   void dispose() {
-    _url.dispose();
-    _anon.dispose();
-    _email.dispose();
-    _password.dispose();
-    _passphrase.dispose();
+    _clientId.dispose();
+    _clientSecret.dispose();
     super.dispose();
   }
 
-  void _say(String m, {bool error = false}) =>
-      setState(() { _msg = m; _msgIsError = error; });
-
-  Future<void> _guard(Future<void> Function() action) async {
-    setState(() { _busy = true; _msg = null; });
+  Future<void> _run(Future<void> Function() action) async {
+    setState(() {
+      _busy = true;
+      _localError = null;
+    });
     try {
       await action();
     } catch (e) {
-      _say(_friendly(e), error: true);
+      if (mounted) {
+        setState(() =>
+            _localError = e.toString().replaceFirst('Exception: ', ''));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }
   }
 
-  String _friendly(Object e) {
-    final s = e.toString();
-    if (s.contains('SecretBox') || s.contains('Mac') || s.contains('authentication')) {
-      return 'Wrong sync passphrase for this account’s data.';
-    }
-    return s.replaceFirst('Exception: ', '');
-  }
-
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
-    final service = ref.watch(syncServiceProvider);
-    final configured = ref.watch(syncConfiguredProvider).asData?.value ?? false;
-    final initialized = service.isInitialized;
-    final signedIn = service.isSignedIn;
+    final status = ref.watch(syncEngineProvider);
+    final engine = ref.read(syncEngineProvider.notifier);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text('Cloud Sync', style: t.titleLarge),
+        title: Text('Sync', style: t.titleLarge),
       ),
       body: AuroraBackground(
         child: SafeArea(
           top: false,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(Insets.xl, 0, Insets.xl, Insets.xxl),
+            padding:
+                const EdgeInsets.fromLTRB(Insets.xl, 0, Insets.xl, Insets.xxl),
             children: [
-              GlassCard(
-                child: Row(children: [
-                  Icon(signedIn ? Icons.cloud_done_outlined : Icons.cloud_off_outlined,
-                      color: signedIn ? _ok : AppColors.muted),
-                  const SizedBox(width: Insets.md),
-                  Expanded(
-                    child: Text(
-                      !configured
-                          ? 'Not configured'
-                          : !initialized
-                              ? 'Configured — connecting…'
-                              : !signedIn
-                                  ? 'Connected — sign in to sync'
-                                  : 'Signed in as ${service.currentUser?.email ?? 'account'}',
-                      style: t.bodyMedium,
-                    ),
-                  ),
-                ]),
-              ),
+              _StatusCard(status: status),
               const SizedBox(height: Insets.lg),
-
-              if (!configured || !initialized) ...[
-                Text('SUPABASE PROJECT', style: t.labelSmall),
-                const SizedBox(height: Insets.md),
-                _field(_url, 'Project URL', hint: 'https://xxxx.supabase.co'),
-                const SizedBox(height: Insets.md),
-                _field(_anon, 'anon public key', hint: 'eyJ...'),
-                const SizedBox(height: Insets.lg),
-                _primary('Save & connect', () => _guard(() async {
-                      await service.saveConfig(_url.text, _anon.text);
-                      ref.invalidate(syncConfiguredProvider);
-                      final ok = await service.ensureInitialized();
-                      _say(ok
-                          ? 'Connected. Now sign in below.'
-                          : 'Could not connect — double-check the URL/key, then restart the app.');
-                    })),
-                const SizedBox(height: Insets.md),
-                Text('See docs/SUPABASE.md for the 2-minute setup + schema.', style: t.bodySmall),
-              ] else if (!signedIn) ...[
-                Text('ACCOUNT', style: t.labelSmall),
-                const SizedBox(height: Insets.md),
-                _field(_email, 'Email'),
-                const SizedBox(height: Insets.md),
-                _field(_password, 'Password', obscure: true),
+              if (!status.connected)
+                ..._buildConnect(t, engine)
+              else
+                ..._buildConnected(t, status, engine),
+              if (_localError != null) ...[
                 const SizedBox(height: Insets.lg),
                 Row(children: [
-                  Expanded(
-                    child: _primary('Sign in', () => _guard(() async {
-                          await service.signIn(_email.text, _password.text);
-                          _say('Signed in.');
-                        })),
-                  ),
-                  const SizedBox(width: Insets.md),
-                  Expanded(
-                    child: _secondary('Sign up', () => _guard(() async {
-                          await service.signUp(_email.text, _password.text);
-                          _say(service.isSignedIn
-                              ? 'Account created.'
-                              : 'Check your email to confirm, then sign in.');
-                        })),
-                  ),
-                ]),
-              ] else ...[
-                Text('SYNC PASSPHRASE', style: t.labelSmall),
-                const SizedBox(height: 6),
-                Text('Your end-to-end key. Use the same one on every device.', style: t.bodySmall),
-                const SizedBox(height: Insets.md),
-                _field(_passphrase, 'Sync passphrase', obscure: true),
-                const SizedBox(height: Insets.lg),
-                _primary('Sync now', () => _guard(() async {
-                      if (_passphrase.text.length < 4) {
-                        _say('Enter your sync passphrase (4+ chars).', error: true);
-                        return;
-                      }
-                      ref.read(syncPassphraseProvider.notifier).set(_passphrase.text);
-                      final r = await service.syncNow(_passphrase.text);
-                      _say(r.message);
-                    })),
-                const SizedBox(height: Insets.md),
-                _secondary('Sign out', () => _guard(() async {
-                      await service.signOut();
-                      _say('Signed out.');
-                    })),
-              ],
-
-              if (_msg != null) ...[
-                const SizedBox(height: Insets.lg),
-                Row(children: [
-                  Icon(_msgIsError ? Icons.error_outline : Icons.check_circle_outline,
-                      size: 16, color: _msgIsError ? _err : _ok),
+                  const Icon(Icons.error_outline, size: 16, color: _err),
                   const SizedBox(width: Insets.sm),
                   Expanded(
-                      child: Text(_msg!,
-                          style: t.bodySmall?.copyWith(color: _msgIsError ? _err : _ok))),
+                      child: Text(_localError!,
+                          style: t.bodySmall?.copyWith(color: _err))),
                 ]),
               ],
               if (_busy) ...[
@@ -197,49 +108,183 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
     );
   }
 
-  Widget _field(TextEditingController c, String label, {String? hint, bool obscure = false}) {
-    return TextField(
-      controller: c,
-      obscureText: obscure,
-      style: Theme.of(context).textTheme.bodyLarge,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
-        filled: true,
-        fillColor: AppColors.graphiteHi,
-        labelStyle: const TextStyle(color: AppColors.muted),
-        hintStyle: const TextStyle(color: AppColors.faint),
-        contentPadding: const EdgeInsets.symmetric(horizontal: Insets.lg, vertical: Insets.md),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(Radii.sm),
-          borderSide: const BorderSide(color: AppColors.border),
+  List<Widget> _buildConnect(TextTheme t, SyncEngine engine) => [
+        Text('GOOGLE DRIVE', style: t.labelSmall),
+        const SizedBox(height: 6),
+        Text(
+          'Your data lives in a private app folder inside your own Google '
+          'Drive — no third-party servers. Connect every device to the same '
+          'Google account and they stay in step automatically.',
+          style: t.bodySmall,
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(Radii.sm),
-          borderSide: const BorderSide(color: AppColors.electricBlue),
+        const SizedBox(height: Insets.lg),
+        _field(_clientId, 'OAuth client ID',
+            hint: 'xxxx.apps.googleusercontent.com'),
+        const SizedBox(height: Insets.md),
+        _field(_clientSecret, 'OAuth client secret',
+            hint: 'GOCSPX-…', obscure: true),
+        const SizedBox(height: Insets.lg),
+        NeoBlock(
+          color: AppColors.electricBlue,
+          foreground: Colors.white,
+          onTap: _busy
+              ? null
+              : () => _run(() async {
+                    if (_clientId.text.trim().isEmpty ||
+                        _clientSecret.text.trim().isEmpty) {
+                      throw Exception(
+                          'Paste your OAuth client ID and secret first — '
+                          'docs/GOOGLE_DRIVE.md is the 5-minute walkthrough.');
+                    }
+                    await engine.connect(
+                        _clientId.text, _clientSecret.text);
+                  }),
+          child: const Center(child: Text('Connect Google Drive')),
         ),
-      ),
+        const SizedBox(height: Insets.md),
+        Text(
+          'One-time setup: create a free "Desktop app" OAuth client in Google '
+          'Cloud Console and paste it above — the full walkthrough lives in '
+          'docs/GOOGLE_DRIVE.md. The same client ID works on all your devices.',
+          style: t.bodySmall,
+        ),
+      ];
+
+  List<Widget> _buildConnected(
+          TextTheme t, SyncStatus status, SyncEngine engine) =>
+      [
+        Text('AUTOMATIC SYNC', style: t.labelSmall),
+        const SizedBox(height: Insets.sm),
+        GlassCard(
+          padding: const EdgeInsets.symmetric(
+              horizontal: Insets.lg, vertical: Insets.sm),
+          child: Row(children: [
+            Expanded(
+              child: Text(
+                'Sync changes as they happen',
+                style: t.bodyMedium,
+              ),
+            ),
+            Switch(
+              value: status.autoSync,
+              onChanged: (v) => engine.setAutoSync(v),
+            ),
+          ]),
+        ),
+        const SizedBox(height: Insets.lg),
+        NeoBlock(
+          color: AppColors.electricBlue,
+          foreground: Colors.white,
+          onTap: _busy || status.phase == SyncPhase.syncing
+              ? null
+              : () => _run(() => engine.syncNow()),
+          child: Center(
+              child: Text(status.phase == SyncPhase.syncing
+                  ? 'Syncing…'
+                  : 'Sync now')),
+        ),
+        const SizedBox(height: Insets.md),
+        GlassCard(
+          onTap: _busy
+              ? null
+              : () => _run(() async {
+                    final sure = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Disconnect Google Drive?'),
+                        content: const Text(
+                            'This device stops syncing. Nothing is deleted — '
+                            'your data stays here, on Drive, and on your '
+                            'other devices.'),
+                        actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx, false),
+                              child: const Text('Cancel')),
+                          TextButton(
+                              onPressed: () => Navigator.pop(ctx, true),
+                              child: const Text('Disconnect')),
+                        ],
+                      ),
+                    );
+                    if (sure == true) await engine.disconnect();
+                  }),
+          padding: const EdgeInsets.all(Insets.md),
+          child: Center(
+              child: Text('Disconnect',
+                  style: t.bodyMedium?.copyWith(color: AppColors.muted))),
+        ),
+      ];
+
+  Widget _field(TextEditingController c, String label,
+          {String? hint, bool obscure = false}) =>
+      TextField(
+        controller: c,
+        obscureText: obscure,
+        autocorrect: false,
+        decoration: InputDecoration(labelText: label, hintText: hint),
+      );
+}
+
+class _StatusCard extends StatelessWidget {
+  final SyncStatus status;
+  const _StatusCard({required this.status});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final (icon, color, headline) = switch (status.phase) {
+      SyncPhase.disconnected => (
+          Icons.cloud_off_outlined,
+          AppColors.muted,
+          'Not connected'
+        ),
+      SyncPhase.idle => (
+          Icons.cloud_done_outlined,
+          _ok,
+          'Synced with ${status.email ?? 'Google Drive'}'
+        ),
+      SyncPhase.syncing => (
+          Icons.cloud_sync_outlined,
+          _ok,
+          'Syncing…'
+        ),
+      SyncPhase.offline => (
+          Icons.cloud_queue_outlined,
+          _warn,
+          'Offline — changes saved here, will sync when back'
+        ),
+      SyncPhase.error => (
+          Icons.cloud_off_outlined,
+          _err,
+          'Sync hit a snag'
+        ),
+    };
+    return GlassCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Icon(icon, color: color),
+          const SizedBox(width: Insets.md),
+          Expanded(child: Text(headline, style: t.bodyMedium)),
+        ]),
+        if (status.lastSyncedAt != null) ...[
+          const SizedBox(height: Insets.sm),
+          Text('Last synced ${_ago(status.lastSyncedAt!)}',
+              style: t.bodySmall),
+        ],
+        if (status.message != null) ...[
+          const SizedBox(height: Insets.sm),
+          Text(status.message!, style: t.bodySmall?.copyWith(color: color)),
+        ],
+      ]),
     );
   }
 
-  Widget _primary(String label, VoidCallback onTap) => NeoBlock(
-        color: AppColors.electricBlue,
-        foreground: Colors.white,
-        onTap: _busy ? null : onTap,
-        padding: const EdgeInsets.symmetric(vertical: Insets.md),
-        child: Center(child: Text(label)),
-      );
-
-  Widget _secondary(String label, VoidCallback onTap) => GestureDetector(
-        onTap: _busy ? null : onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: Insets.md),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(Radii.sm),
-            border: Border.all(color: AppColors.borderStrong),
-          ),
-          child: Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
-        ),
-      );
+  static String _ago(DateTime d) {
+    final diff = DateTime.now().difference(d);
+    if (diff.inSeconds < 10) return 'just now';
+    if (diff.inMinutes < 1) return '${diff.inSeconds}s ago';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (diff.inDays < 1) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
 }

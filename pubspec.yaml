@@ -45,8 +45,10 @@ dependencies:
   cryptography: ^2.9.0
   flutter_secure_storage: ^10.3.1
   local_auth: ^3.0.1
-  supabase_flutter: ^2.15.0
   http: ^1.6.0
+  url_launcher: ^6.3.2
+  crypto: ^3.0.7
+  package_info_plus: ^10.2.0
 
 dev_dependencies:
   flutter_test:
