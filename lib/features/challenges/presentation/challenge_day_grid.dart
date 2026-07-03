@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../application/challenge_providers.dart';
+import '../../../core/util/day.dart';
 
 /// The challenge's heatmap overlay: one cell per day in the window, colored by
 /// pass / miss / pending / future.
@@ -24,7 +25,7 @@ class ChallengeDayGrid extends StatelessWidget {
       spacing: 4,
       runSpacing: 4,
       children: [
-        for (int i = 0; i < totalDays; i++) _cell(start.add(Duration(days: i))),
+        for (int i = 0; i < totalDays; i++) _cell(addDays(start, i)),
       ],
     );
   }

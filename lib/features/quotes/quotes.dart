@@ -1,5 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/util/current_day.dart';
+import '../../core/util/day.dart';
+
 class Quote {
   final String text;
   final String author;
@@ -41,9 +44,10 @@ const kQuotes = <Quote>[
   Quote('The brain computes in ways we are only beginning to imitate.', 'Geoffrey Hinton', 'AI'),
 ];
 
-/// Deterministic per-day rotation so the quote is stable across a calendar day.
+/// Deterministic per-day rotation, stable across a calendar day and rolling
+/// at midnight (watches [currentDayProvider] instead of freezing at launch).
 final quoteOfTheDayProvider = Provider<Quote>((ref) {
-  final now = DateTime.now();
-  final dayOfYear = now.difference(DateTime(now.year)).inDays;
+  final today = ref.watch(currentDayProvider);
+  final dayOfYear = daysBetween(DateTime(today.year), today);
   return kQuotes[dayOfYear % kQuotes.length];
 });

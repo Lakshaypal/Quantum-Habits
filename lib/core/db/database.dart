@@ -182,6 +182,12 @@ class AppDatabase extends _$AppDatabase {
   /// names & icons for historical entries in the heatmap and day views.
   Stream<List<Habit>> watchAllHabitsAny() => select(habits).watch();
 
+  /// Archived (but not deleted) habits — the recoverable shelf.
+  Stream<List<Habit>> watchArchivedHabits() => (select(habits)
+        ..where((t) => t.archived.equals(true) & t.deletedAt.isNull())
+        ..orderBy([(t) => OrderingTerm(expression: t.createdAt)]))
+      .watch();
+
   Future<void> insertHabit(HabitsCompanion h) =>
       into(habits).insert(h.copyWith(updatedAtMs: Value(_now())));
 
@@ -218,6 +224,8 @@ class AppDatabase extends _$AppDatabase {
         .watch();
   }
 
+  /// Tolerant of duplicate rows for one habit+day (possible mid-sync): the
+  /// newest row wins instead of crashing a getSingle call.
   Future<HabitEntry?> entryFor(String habitId, DateTime day) {
     final start = DateTime(day.year, day.month, day.day);
     final end = start.add(const Duration(days: 1));
@@ -226,7 +234,12 @@ class AppDatabase extends _$AppDatabase {
               t.deleted.equals(false) &
               t.habitId.equals(habitId) &
               t.date.isBiggerOrEqualValue(start) &
-              t.date.isSmallerThanValue(end)))
+              t.date.isSmallerThanValue(end))
+          ..orderBy([
+            (t) => OrderingTerm(
+                expression: t.updatedAtMs, mode: OrderingMode.desc)
+          ])
+          ..limit(1))
         .getSingleOrNull();
   }
 
@@ -257,9 +270,10 @@ class AppDatabase extends _$AppDatabase {
   Future<void> updateChallengeRow(Challenge c) =>
       update(challenges).replace(c.copyWith(updatedAtMs: _now()));
 
+  /// Upsert: also used to flip `mandatory` or revive a tombstoned link.
   Future<void> insertChallengeHabit(ChallengeHabitsCompanion ch) =>
-      into(challengeHabits)
-          .insert(ch.copyWith(updatedAtMs: Value(_now())));
+      into(challengeHabits).insertOnConflictUpdate(ch.copyWith(
+          deleted: const Value(false), updatedAtMs: Value(_now())));
 
   /// Detaches a habit from a challenge (tombstoned so it syncs).
   Future<void> removeChallengeHabit(String id) =>

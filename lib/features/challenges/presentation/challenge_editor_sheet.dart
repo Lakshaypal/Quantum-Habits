@@ -9,6 +9,7 @@ import '../../habits/application/habit_providers.dart';
 import '../../habits/data/habit_type.dart';
 import '../application/challenge_providers.dart';
 import '../data/challenge_model.dart';
+import '../../../core/util/day.dart';
 
 const _mon = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 String _fmtDate(DateTime d) => '${_mon[d.month]} ${d.day}, ${d.year}';
@@ -63,7 +64,7 @@ class _ChallengeEditorSheetState extends ConsumerState<ChallengeEditorSheet> {
       return;
     }
     final start = DateTime.now();
-    final end = DateTime(start.year, start.month, start.day).add(Duration(days: _days - 1));
+    final end = addDays(dayKey(start), _days - 1);
     final habits = <({String habitId, bool mandatory})>[];
     _habitState.forEach((id, state) {
       if (state == 1) habits.add((habitId: id, mandatory: true));
@@ -87,7 +88,7 @@ class _ChallengeEditorSheetState extends ConsumerState<ChallengeEditorSheet> {
     final t = Theme.of(context).textTheme;
     final habits = ref.watch(activeHabitsProvider).asData?.value ?? const <Habit>[];
     final start = DateTime.now();
-    final end = DateTime(start.year, start.month, start.day).add(Duration(days: _days - 1));
+    final end = addDays(dayKey(start), _days - 1);
 
     return Container(
       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9),

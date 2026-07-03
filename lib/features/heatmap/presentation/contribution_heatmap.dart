@@ -46,7 +46,7 @@ class ContributionHeatmap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final today = dayKey(DateTime.now());
-    final firstWeek = startOfWeek(today.subtract(Duration(days: range.days)));
+    final firstWeek = startOfWeek(addDays(today, -range.days));
     final lastWeek = startOfWeek(today);
     final weekCount = lastWeek.difference(firstWeek).inDays ~/ 7 + 1;
 
@@ -130,7 +130,7 @@ class _Grid extends StatelessWidget {
     for (int w = 0; w < weekCount; w++) {
       final cells = <Widget>[];
       for (int d = 0; d < 7; d++) {
-        final date = firstWeek.add(Duration(days: w * 7 + d));
+        final date = addDays(firstWeek, w * 7 + d);
         final future = date.isAfter(today);
         final level = stats[date]?.level ?? 0;
         cells.add(Padding(
@@ -216,7 +216,7 @@ class _MonthLabels extends StatelessWidget {
     final children = <Widget>[];
     int? lastMonth;
     for (int w = 0; w < weekCount; w++) {
-      final weekStart = firstWeek.add(Duration(days: w * 7));
+      final weekStart = addDays(firstWeek, w * 7);
       String text = '';
       if (weekStart.month != lastMonth) {
         text = _months[weekStart.month];

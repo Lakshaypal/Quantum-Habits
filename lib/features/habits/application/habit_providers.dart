@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../../core/db/database.dart';
+import '../../../core/util/current_day.dart';
 import '../../../core/util/day.dart';
 import '../data/habit_type.dart';
 
@@ -27,8 +28,16 @@ final allHabitsAnyProvider = StreamProvider<List<Habit>>(
 final allEntriesProvider = StreamProvider<List<HabitEntry>>(
     (ref) => ref.watch(databaseProvider).watchAllEntries());
 
-final todayEntriesProvider = StreamProvider<List<HabitEntry>>(
-    (ref) => ref.watch(databaseProvider).watchEntriesForDay(DateTime.now()));
+/// Rebinds at midnight (and on app resume) via [currentDayProvider], so an
+/// app left open overnight rolls to the new day instead of freezing on the
+/// day it launched.
+final todayEntriesProvider = StreamProvider<List<HabitEntry>>((ref) => ref
+    .watch(databaseProvider)
+    .watchEntriesForDay(ref.watch(currentDayProvider)));
+
+/// Archived habits, for the roster's archived section (restore lives there).
+final archivedHabitsProvider = StreamProvider<List<Habit>>(
+    (ref) => ref.watch(databaseProvider).watchArchivedHabits());
 
 final habitServiceProvider =
     Provider<HabitService>((ref) => HabitService(ref.watch(databaseProvider)));
@@ -60,9 +69,34 @@ class HabitService {
     ));
   }
 
+  /// Edits a habit in place — identity, entries and history stay intact.
+  Future<void> updateHabit(
+    Habit existing, {
+    required String name,
+    required HabitType type,
+    required Color color,
+    required IconData icon,
+    String? category,
+    double? target,
+    String? unit,
+  }) {
+    return _db.updateHabitRow(existing.copyWith(
+      name: name.trim(),
+      type: type.index,
+      colorValue: color.toARGB32(),
+      iconCodePoint: icon.codePoint,
+      category: Value(category),
+      targetValue: Value(target),
+      unit: Value(unit),
+    ));
+  }
+
   Future<void> archive(String id) => _db.setArchived(id, true);
 
   Future<void> unarchive(String id) => _db.setArchived(id, false);
+
+  /// Undo for [delete].
+  Future<void> restore(String id) => _db.restoreHabit(id);
 
   /// Soft-deletes a habit: it leaves the active roster but its past entries and
   /// heatmap contributions remain intact.
@@ -118,6 +152,7 @@ class HabitService {
       date: Value(prior.date),
       value: Value(prior.value),
       completed: Value(prior.completed),
+      note: Value(prior.note),
       createdAt: Value(prior.createdAt),
     ));
   }

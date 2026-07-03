@@ -38,7 +38,7 @@ class DayDetailSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context).textTheme;
     final today = dayKey(DateTime.now());
-    final yesterday = today.subtract(const Duration(days: 1));
+    final yesterday = addDays(today, -1);
     final thisDay = dayKey(day);
     final editable = thisDay == today || thisDay == yesterday;
     final relLabel = thisDay == today ? 'Today' : (thisDay == yesterday ? 'Yesterday' : null);
