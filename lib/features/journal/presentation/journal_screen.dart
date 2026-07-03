@@ -24,13 +24,21 @@ class JournalScreen extends ConsumerWidget {
   }
 }
 
-class _JournalList extends ConsumerWidget {
+class _JournalList extends ConsumerStatefulWidget {
   const _JournalList();
+  @override
+  ConsumerState<_JournalList> createState() => _JournalListState();
+}
+
+class _JournalListState extends ConsumerState<_JournalList> {
+  bool _showArchived = false;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final entriesAsync = ref.watch(decryptedJournalProvider);
+    final archived =
+        ref.watch(decryptedArchivedProvider).asData?.value ?? const [];
     final isSunday = DateTime.now().weekday == DateTime.sunday;
 
     return CustomScrollView(
@@ -90,7 +98,65 @@ class _JournalList extends ConsumerWidget {
                         ],
                       ),
               ),
-              const SizedBox(height: 96),
+              if (archived.isNotEmpty) ...[
+                const SizedBox(height: Insets.md),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _showArchived = !_showArchived),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: Insets.sm),
+                    child: Row(
+                      children: [
+                        Text('ARCHIVED · ${archived.length}',
+                            style: t.labelSmall?.copyWith(letterSpacing: 1.6)),
+                        const SizedBox(width: Insets.sm),
+                        Icon(
+                            _showArchived
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                            size: 16,
+                            color: AppColors.faint),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_showArchived)
+                  for (final e in archived)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: Insets.sm),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: Insets.md, vertical: Insets.sm),
+                      decoration: BoxDecoration(
+                        color: AppColors.graphite.withValues(alpha: 0.35),
+                        borderRadius: BorderRadius.circular(Radii.md),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(e.kind.icon, size: 16, color: AppColors.muted),
+                          const SizedBox(width: Insets.md),
+                          Expanded(
+                            child: Text(
+                              e.title.trim().isEmpty
+                                  ? e.kind.label
+                                  : e.title.trim(),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.bodyMedium
+                                  ?.copyWith(color: AppColors.muted),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () => ref
+                                .read(journalServiceProvider)
+                                .unarchive(e.meta.id),
+                            child: const Text('Restore'),
+                          ),
+                        ],
+                      ),
+                    ),
+              ],
+              SizedBox(height: MediaQuery.paddingOf(context).bottom + 96),
             ]),
           ),
         ),

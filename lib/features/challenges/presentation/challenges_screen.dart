@@ -12,13 +12,22 @@ import '../data/challenge_model.dart';
 import 'challenge_detail_screen.dart';
 import 'challenge_editor_sheet.dart';
 
-class ChallengesScreen extends ConsumerWidget {
+class ChallengesScreen extends ConsumerStatefulWidget {
   const ChallengesScreen({super.key});
+  @override
+  ConsumerState<ChallengesScreen> createState() => _ChallengesScreenState();
+}
+
+class _ChallengesScreenState extends ConsumerState<ChallengesScreen> {
+  bool _showArchived = false;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final challenges = ref.watch(challengesProvider).asData?.value ?? const <Challenge>[];
+    final archived =
+        ref.watch(archivedChallengesProvider).asData?.value ?? const <Challenge>[];
+    final bottomClearance = MediaQuery.paddingOf(context).bottom + 96;
 
     return CustomScrollView(
       slivers: [
@@ -38,7 +47,59 @@ class ChallengesScreen extends ConsumerWidget {
                       padding: const EdgeInsets.only(bottom: Insets.md),
                       child: ChallengeCard(challenge: c),
                     )),
-              const SizedBox(height: 120),
+              if (archived.isNotEmpty) ...[
+                const SizedBox(height: Insets.md),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => setState(() => _showArchived = !_showArchived),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: Insets.sm),
+                    child: Row(
+                      children: [
+                        Text('ARCHIVED · ${archived.length}',
+                            style:
+                                t.labelSmall?.copyWith(letterSpacing: 1.6)),
+                        const SizedBox(width: Insets.sm),
+                        Icon(
+                            _showArchived
+                                ? Icons.expand_less
+                                : Icons.expand_more,
+                            size: 16,
+                            color: AppColors.faint),
+                      ],
+                    ),
+                  ),
+                ),
+                if (_showArchived)
+                  ...archived.map((c) => Container(
+                        margin: const EdgeInsets.only(bottom: Insets.sm),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: Insets.md, vertical: Insets.sm),
+                        decoration: BoxDecoration(
+                          color: AppColors.graphite.withValues(alpha: 0.35),
+                          borderRadius: BorderRadius.circular(Radii.md),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.flag_outlined,
+                                size: 16, color: AppColors.muted),
+                            const SizedBox(width: Insets.md),
+                            Expanded(
+                                child: Text(c.name,
+                                    style: t.bodyMedium
+                                        ?.copyWith(color: AppColors.muted))),
+                            TextButton(
+                              onPressed: () => ref
+                                  .read(challengeServiceProvider)
+                                  .unarchive(c.id),
+                              child: const Text('Restore'),
+                            ),
+                          ],
+                        ),
+                      )),
+              ],
+              SizedBox(height: bottomClearance),
             ]),
           ),
         ),

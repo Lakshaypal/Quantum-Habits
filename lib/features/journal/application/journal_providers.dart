@@ -47,6 +47,9 @@ final journalSessionProvider =
 final journalEntriesProvider = StreamProvider<List<JournalEntry>>(
     (ref) => ref.watch(databaseProvider).watchJournalEntries());
 
+final archivedJournalEntriesProvider = StreamProvider<List<JournalEntry>>(
+    (ref) => ref.watch(databaseProvider).watchJournalEntries(archived: true));
+
 /// A journal entry decrypted for display. Title + body live inside the
 /// ciphertext, so nothing readable is stored on disk.
 class DecryptedEntry {
@@ -70,6 +73,25 @@ final decryptedJournalProvider = FutureProvider<List<DecryptedEntry>>((ref) asyn
       final plain = await vault.decryptText(e.nonce, e.cipher, e.mac);
       final map = jsonDecode(plain) as Map<String, dynamic>;
       out.add(DecryptedEntry(e, (map['t'] as String?) ?? '', (map['b'] as String?) ?? ''));
+    } catch (_) {/* skip entries this key can't open */}
+  }
+  return out;
+});
+
+/// Decrypted archived entries — the quiet shelf, restorable any time.
+final decryptedArchivedProvider =
+    FutureProvider<List<DecryptedEntry>>((ref) async {
+  final vault = ref.watch(journalSessionProvider);
+  if (vault == null) return const [];
+  final entries =
+      ref.watch(archivedJournalEntriesProvider).asData?.value ?? const [];
+  final out = <DecryptedEntry>[];
+  for (final e in entries) {
+    try {
+      final plain = await vault.decryptText(e.nonce, e.cipher, e.mac);
+      final map = jsonDecode(plain) as Map<String, dynamic>;
+      out.add(DecryptedEntry(
+          e, (map['t'] as String?) ?? '', (map['b'] as String?) ?? ''));
     } catch (_) {/* skip entries this key can't open */}
   }
   return out;
@@ -106,6 +128,8 @@ class JournalService {
   }
 
   Future<void> archive(String id) => _db.setJournalArchived(id, true);
+
+  Future<void> unarchive(String id) => _db.setJournalArchived(id, false);
 
   /// Cryptographic destruction — the ciphertext is permanently deleted.
   Future<void> burn(String id) => _db.burnJournalEntry(id);

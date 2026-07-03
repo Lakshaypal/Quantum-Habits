@@ -281,10 +281,20 @@ class AppDatabase extends _$AppDatabase {
           ChallengeHabitsCompanion(
               deleted: const Value(true), updatedAtMs: Value(_now())));
 
+  Stream<List<Challenge>> watchArchivedChallenges() => (select(challenges)
+        ..where((t) => t.archived.equals(true) & t.deleted.equals(false))
+        ..orderBy([(t) => OrderingTerm(expression: t.createdAt, mode: OrderingMode.desc)]))
+      .watch();
+
   Future<void> archiveChallenge(String id) =>
       (update(challenges)..where((t) => t.id.equals(id))).write(
           ChallengesCompanion(
               archived: const Value(true), updatedAtMs: Value(_now())));
+
+  Future<void> unarchiveChallenge(String id) =>
+      (update(challenges)..where((t) => t.id.equals(id))).write(
+          ChallengesCompanion(
+              archived: const Value(false), updatedAtMs: Value(_now())));
 
   /// Tombstones the challenge and its habit links.
   Future<void> deleteChallenge(String id) => transaction(() async {

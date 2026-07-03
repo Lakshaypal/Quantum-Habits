@@ -122,8 +122,13 @@ class ChallengeService {
   }
 
   Future<void> archive(String id) => _db.archiveChallenge(id);
+  Future<void> unarchive(String id) => _db.unarchiveChallenge(id);
   Future<void> remove(String id) => _db.deleteChallenge(id);
 }
+
+/// Archived challenges — recoverable from the challenges screen.
+final archivedChallengesProvider = StreamProvider<List<Challenge>>(
+    (ref) => ref.watch(databaseProvider).watchArchivedChallenges());
 
 /// Day status within a challenge window.
 const dayFuture = -1;
