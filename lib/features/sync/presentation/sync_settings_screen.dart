@@ -7,6 +7,7 @@ import '../../../core/widgets/aurora_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/neo_block.dart';
 import '../../habits/application/habit_providers.dart' show databaseProvider;
+import '../../updates/update_service.dart';
 import '../application/sync_engine.dart';
 
 const _ok = Color(0xFF34D399);
@@ -26,6 +27,8 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
   final _clientSecret = TextEditingController();
   bool _busy = false;
   String? _localError;
+  bool _checkingUpdate = false;
+  UpdateCheck? _updateCheck;
 
   @override
   void initState() {
@@ -87,6 +90,8 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
                 ..._buildConnect(t, engine)
               else
                 ..._buildConnected(t, status, engine),
+              const SizedBox(height: Insets.xl),
+              ..._buildUpdates(t),
               if (_localError != null) ...[
                 const SizedBox(height: Insets.lg),
                 Row(children: [
@@ -214,6 +219,85 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
                   style: t.bodyMedium?.copyWith(color: AppColors.muted))),
         ),
       ];
+
+  List<Widget> _buildUpdates(TextTheme t) {
+    final check = _updateCheck;
+    return [
+      Text('APP UPDATES', style: t.labelSmall),
+      const SizedBox(height: Insets.sm),
+      GlassCard(
+        padding: const EdgeInsets.all(Insets.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            switch (check) {
+              null => Text(
+                  'New versions install straight from the app — no store '
+                  'needed.',
+                  style: t.bodySmall),
+              UpToDate(:final current) => Text(
+                  'You’re on the latest version ($current).',
+                  style: t.bodySmall?.copyWith(color: _ok)),
+              UpdateCheckFailed(:final reason) =>
+                Text(reason, style: t.bodySmall?.copyWith(color: _warn)),
+              UpdateAvailable(:final current, :final update) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Version ${update.version} is out (you have $current).',
+                        style: t.bodyMedium),
+                    if (update.notes.trim().isNotEmpty) ...[
+                      const SizedBox(height: Insets.sm),
+                      Text(update.notes.trim(),
+                          maxLines: 6,
+                          overflow: TextOverflow.ellipsis,
+                          style: t.bodySmall),
+                    ],
+                  ],
+                ),
+            },
+            const SizedBox(height: Insets.md),
+            Row(
+              children: [
+                TextButton.icon(
+                  onPressed: _checkingUpdate
+                      ? null
+                      : () async {
+                          setState(() => _checkingUpdate = true);
+                          final result =
+                              await ref.read(updateServiceProvider).check();
+                          if (mounted) {
+                            setState(() {
+                              _updateCheck = result;
+                              _checkingUpdate = false;
+                            });
+                          }
+                        },
+                  icon: _checkingUpdate
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.refresh, size: 16),
+                  label: const Text('Check for updates'),
+                ),
+                const Spacer(),
+                if (check is UpdateAvailable)
+                  NeoBlock(
+                    color: AppColors.electricBlue,
+                    foreground: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Insets.lg, vertical: Insets.sm),
+                    onTap: () =>
+                        ref.read(updateServiceProvider).download(check.update),
+                    child: const Text('Download & install'),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ];
+  }
 
   Widget _field(TextEditingController c, String label,
           {String? hint, bool obscure = false}) =>
