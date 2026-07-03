@@ -10,8 +10,8 @@
 | Framework | **Flutter** (single codebase) | Native macOS `.app` + Android `.apk`, identical design language & feature parity |
 | State | **Riverpod** | Compile-safe DI, testable, async-first |
 | Local store | **SQLite via `drift`** + `drift_flutter` | Type-safe, offline-first, runs on macOS + Android |
-| Sync (Phase 2+) | **Supabase** (Postgres + Auth + Realtime) | E2E-encrypted blobs, conflict resolution |
-| Auth | Email · Google · Apple | Supabase GoTrue |
+| Sync | **Google Drive appDataFolder** (user's own Drive, no third-party server) | Per-record LWW merge, auto-sync |
+| Auth | Google OAuth 2.0 installed-app flow (loopback + PKCE) | One Desktop client works on macOS/Windows/Android |
 | Crypto | **AES-256-GCM** (journals, synced blobs) | Encrypt before leaving device |
 | Type | Inter (UI) · JetBrains Mono (numerics) | Linear-grade clarity; mono gives the "lab" feel |
 
@@ -59,14 +59,25 @@ Settings     key→value (theme, palette, recoveryDays, layout)                 
 into L0–L4 (0, <0.34, <0.67, <1.0, =1.0 perfect day). Count/time habits count as "completed" when
 they meet their `targetValue`.
 
-## 4. Sync & conflict resolution (Phase 2+)
+## 4. Sync & conflict resolution (v2 — SHIPPED)
 
-- Every row carries `updatedAt` + `deviceId`; per-row **last-writer-wins** with a tombstone table
-  for deletes. Journals & sensitive fields are stored as **AES-256-GCM ciphertext** — Supabase
-  never sees plaintext (E2E). Key derived from the user passphrase (Argon2id) + device keychain.
-- Outbox pattern: local writes enqueue a sync op; a background worker flushes on reconnect.
-- **Sunday Journal Burn** = cryptographic destruction: delete the row locally *and* server-side and
-  drop/rotate its data key so the ciphertext is unrecoverable. Irreversible by design.
+- Backend: a single gzipped-JSON **vault file in the user's Google Drive `appDataFolder`**
+  (`features/sync/drive_client.dart`). No servers of ours; each device holds an OAuth refresh
+  token in the platform keychain. One-time setup per device: paste the OAuth client id/secret
+  (docs/GOOGLE_DRIVE.md) and approve in the browser.
+- Every synced row carries `updatedAtMs` + a tombstone. Merge (`vault_merge.dart`) is per-record
+  **last-writer-wins**, deterministic (ties: tombstone wins, then canonical JSON), convergent in
+  both directions, and canonicalizes logical duplicates (two devices logging the same habit+day
+  offline collapse to one row). There is **no destructive replace path** — offline edits from two
+  devices interleave. Unit-tested in test/vault_merge_test.dart.
+- Engine (`sync_engine.dart`): debounced push ~3s after any local mutation, remote poll every ~40s
+  while foregrounded, immediate sync on app resume, offline queuing with automatic retry.
+  Day-keyed fields travel as `yyyy-MM-dd` strings so calendar days survive timezone changes.
+- Journal entries remain **AES-256-GCM ciphertext inside the vault** (key from the journal
+  passphrase; salt+verifier sync so the same passphrase unlocks everywhere). **Sunday Burn** zeroes
+  the ciphertext AND tombstones the row, so destruction propagates to every device.
+- In-app updates: `features/updates/update_service.dart` checks GitHub Releases
+  (docs/RELEASING.md); CI builds macOS/Windows/Android artifacts on tag push.
 
 ## 5. Widgets
 
