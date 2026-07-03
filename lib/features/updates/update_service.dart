@@ -4,8 +4,9 @@ import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+
+import '../../core/app_version.dart';
 
 /// GitHub repo that hosts releases, as `owner/name`. Push this project to
 /// GitHub under this name (or change the constant) and tag releases as
@@ -48,12 +49,7 @@ final updateServiceProvider = Provider<UpdateService>((_) => UpdateService());
 /// the OS to download & install. No update server of ours involved.
 class UpdateService {
   Future<UpdateCheck> check() async {
-    final String current;
-    try {
-      current = (await PackageInfo.fromPlatform()).version;
-    } catch (_) {
-      return const UpdateCheckFailed('Could not read the app version.');
-    }
+    const current = kAppVersion;
     final http.Response res;
     try {
       res = await http

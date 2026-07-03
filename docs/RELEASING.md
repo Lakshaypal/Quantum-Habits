@@ -19,7 +19,8 @@ in-app when a newer version exists.
 
 ## Every release
 
-1. Bump `version:` in `pubspec.yaml` (e.g. `2.1.0+3`).
+1. Bump `version:` in `pubspec.yaml` (e.g. `2.1.0+3`) **and** `kAppVersion`
+   in `lib/core/app_version.dart` (the updater compares against it).
 2. Commit, tag, push:
    ```bash
    git commit -am "v2.1.0"

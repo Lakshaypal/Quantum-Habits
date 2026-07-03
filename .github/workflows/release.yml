@@ -38,7 +38,7 @@ jobs:
       - run: flutter build macos --release --no-tree-shake-icons
       - run: |
           cd "build/macos/Build/Products/Release"
-          ditto -c -k --sequesterRsrc --keepParent "Quantum Habits.app" "$GITHUB_WORKSPACE/QuantumHabits-macos.zip"
+          ditto -c -k --sequesterRsrc --keepParent "quantum_habits.app" "$GITHUB_WORKSPACE/QuantumHabits-macos.zip"
       - uses: softprops/action-gh-release@v2
         with:
           files: QuantumHabits-macos.zip
