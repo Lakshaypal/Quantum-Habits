@@ -60,8 +60,14 @@ class JournalKeyService {
   }
 
   /// First-time setup: persist a random salt + encrypted verifier, return the
-  /// unlocked vault.
+  /// unlocked vault. Refuses to overwrite an existing key — a stale "set up"
+  /// screen (e.g. after a sync pulled another device's salt) must never
+  /// silently re-key and orphan existing ciphertext.
   Future<JournalVault> setupPassphrase(String passphrase) async {
+    if (await hasPassphrase()) {
+      throw StateError(
+          'A journal passphrase already exists — unlock with it instead.');
+    }
     final salt = _randomBytes(16);
     final key = await _derive(passphrase, salt);
     final box = await _algo.encrypt(utf8.encode(_verifyPlaintext), secretKey: key);
@@ -70,6 +76,23 @@ class JournalKeyService {
     await _db.setKV(_kVCipher, base64.encode(box.cipherText));
     await _db.setKV(_kVMac, base64.encode(box.mac.bytes));
     return JournalVault(key);
+  }
+
+  /// Whether [vault]'s key still opens this database's verifier — false when
+  /// the key is stale (e.g. sync replaced the salt from another device).
+  Future<bool> validateVault(JournalVault vault) async {
+    try {
+      final box = SecretBox(
+        base64.decode((await _db.getKV(_kVCipher))!),
+        nonce: base64.decode((await _db.getKV(_kVNonce))!),
+        mac: Mac(base64.decode((await _db.getKV(_kVMac))!)),
+      );
+      final clear =
+          utf8.decode(await _algo.decrypt(box, secretKey: await vault.key));
+      return clear == _verifyPlaintext;
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Returns a vault when the passphrase is correct; null otherwise (the GCM

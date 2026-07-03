@@ -51,8 +51,8 @@ class _JournalLockViewState extends ConsumerState<JournalLockView> {
 
   Future<void> _setup() async {
     final p = _pass.text;
-    if (p.length < 4) {
-      setState(() => _error = 'Use at least 4 characters.');
+    if (p.length < 8) {
+      setState(() => _error = 'Use at least 8 characters.');
       return;
     }
     if (p != _confirm.text) {
@@ -63,10 +63,27 @@ class _JournalLockViewState extends ConsumerState<JournalLockView> {
       _busy = true;
       _error = null;
     });
-    final vault = await ref.read(journalKeyServiceProvider).setupPassphrase(p);
-    if (_remember) await ref.read(biometricVaultProvider).remember(vault);
-    ref.invalidate(hasPassphraseProvider);
-    ref.read(journalSessionProvider.notifier).open(vault);
+    try {
+      final vault =
+          await ref.read(journalKeyServiceProvider).setupPassphrase(p);
+      if (!mounted) return;
+      if (_remember && _bioAvailable) {
+        await ref.read(biometricVaultProvider).remember(vault);
+      } else {
+        await ref.read(biometricVaultProvider).forget();
+      }
+      if (!mounted) return;
+      ref.invalidate(hasPassphraseProvider);
+      ref.read(journalSessionProvider.notifier).open(vault);
+    } catch (e) {
+      if (mounted) {
+        setState(() =>
+            _error = e.toString().replaceFirst('Bad state: ', ''));
+        ref.invalidate(hasPassphraseProvider);
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   Future<void> _unlock() async {
@@ -74,27 +91,58 @@ class _JournalLockViewState extends ConsumerState<JournalLockView> {
       _busy = true;
       _error = null;
     });
-    final vault = await ref.read(journalKeyServiceProvider).unlock(_pass.text);
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (vault == null) {
-      setState(() => _error = 'Incorrect passphrase.');
-      return;
+    try {
+      final vault =
+          await ref.read(journalKeyServiceProvider).unlock(_pass.text);
+      if (!mounted) return;
+      if (vault == null) {
+        setState(() => _error = 'Incorrect passphrase.');
+        return;
+      }
+      if (_remember && _bioAvailable) {
+        await ref.read(biometricVaultProvider).remember(vault);
+      } else {
+        // Respect an explicit opt-out: drop any previously stored key.
+        await ref.read(biometricVaultProvider).forget();
+      }
+      if (!mounted) return;
+      ref.read(journalSessionProvider.notifier).open(vault);
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Unlock failed: $e');
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
-    if (_remember && _bioAvailable) {
-      await ref.read(biometricVaultProvider).remember(vault);
-    }
-    ref.read(journalSessionProvider.notifier).open(vault);
   }
 
   Future<void> _biometricUnlock() async {
     setState(() => _error = null);
-    final vault = await ref.read(biometricVaultProvider).unlockWithBiometrics();
-    if (!mounted) return;
-    if (vault != null) {
+    try {
+      final bio = ref.read(biometricVaultProvider);
+      final vault = await bio.unlockWithBiometrics();
+      if (!mounted) return;
+      if (vault == null) {
+        setState(() => _error = 'Biometric unlock unavailable.');
+        return;
+      }
+      // A stored key can go stale when sync brings another device's salt —
+      // verify before trusting it, else fall back to the passphrase.
+      final valid =
+          await ref.read(journalKeyServiceProvider).validateVault(vault);
+      if (!mounted) return;
+      if (!valid) {
+        await bio.forget();
+        if (mounted) {
+          setState(() {
+            _bioHasKey = false;
+            _error =
+                'Saved key no longer matches this journal — enter your passphrase.';
+          });
+        }
+        return;
+      }
       ref.read(journalSessionProvider.notifier).open(vault);
-    } else {
-      setState(() => _error = 'Biometric unlock unavailable.');
+    } catch (e) {
+      if (mounted) setState(() => _error = 'Biometric unlock failed: $e');
     }
   }
 

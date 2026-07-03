@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/widgets.dart' show AppLifecycleListener;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -21,10 +22,21 @@ final hasPassphraseProvider =
     FutureProvider<bool>((ref) => ref.watch(journalKeyServiceProvider).hasPassphrase());
 
 /// The unlocked vault, or null when the journal is locked. Cleared on lock /
-/// app restart so the key never outlives the session.
+/// app restart, and auto-locked the moment the app leaves the foreground so
+/// whoever picks up the device lands on the lock screen.
 class JournalSession extends Notifier<JournalVault?> {
+  AppLifecycleListener? _lifecycle;
+
   @override
-  JournalVault? build() => null;
+  JournalVault? build() {
+    ref.onDispose(() {
+      _lifecycle?.dispose();
+      _lifecycle = null;
+    });
+    _lifecycle ??= AppLifecycleListener(onHide: lock, onPause: lock);
+    return null;
+  }
+
   void open(JournalVault vault) => state = vault;
   void lock() => state = null;
 }

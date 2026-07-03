@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/db/database.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../challenges/application/challenge_providers.dart';
 import '../application/habit_providers.dart';
+import 'habit_editor_sheet.dart';
 import '../data/habit_type.dart';
 
 String _fmt(double v) => v.toStringAsFixed(v % 1 == 0 ? 0 : 1);
@@ -174,6 +176,15 @@ class HabitTile extends ConsumerWidget {
             ),
             const Divider(height: 1, color: AppColors.border),
             ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit habit'),
+              subtitle: const Text('Name, target, color, icon — history stays'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                showHabitEditor(context, existing: habit);
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.refresh),
               title: const Text("Reset today's progress"),
               onTap: () {
@@ -210,14 +221,27 @@ class HabitTile extends ConsumerWidget {
 
   Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
+    // Warn when the habit gates a challenge — deleting it stops it counting
+    // toward that challenge from today onward.
+    final links = ref.read(challengeHabitsProvider).asData?.value ?? const [];
+    final challenges = ref.read(challengesProvider).asData?.value ?? const [];
+    final linkedNames = [
+      for (final c in challenges)
+        if (links.any((l) => l.challengeId == c.id && l.habitId == habit.id))
+          c.name
+    ];
+    final warning = linkedNames.isEmpty
+        ? ''
+        : '\n\nHeads-up: it’s part of ${linkedNames.map((n) => '“$n”').join(', ')} — '
+            'it will stop counting toward ${linkedNames.length == 1 ? 'that challenge' : 'those challenges'}.';
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         backgroundColor: AppColors.graphiteHi,
         title: Text('Delete “${habit.name}”?'),
-        content: const Text(
+        content: Text(
           'It will be removed from your habit list and you’ll stop tracking it. '
-          'Its past completions stay in your heatmap and history.',
+          'Its past completions stay in your heatmap and history.$warning',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
@@ -230,11 +254,16 @@ class HabitTile extends ConsumerWidget {
       ),
     );
     if (confirmed != true) return;
-    await ref.read(habitServiceProvider).delete(habit.id);
+    final service = ref.read(habitServiceProvider);
+    await service.delete(habit.id);
     messenger?.showSnackBar(SnackBar(
       content: Text('“${habit.name}” deleted'),
       behavior: SnackBarBehavior.floating,
       backgroundColor: AppColors.graphiteHi,
+      action: SnackBarAction(
+        label: 'UNDO',
+        onPressed: () => service.restore(habit.id),
+      ),
     ));
   }
 

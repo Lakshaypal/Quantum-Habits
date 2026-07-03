@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/db/database.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/heatmap_palette.dart';
+import '../../../core/theme/theme_prefs.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../analytics/presentation/analytics_screen.dart';
 import '../../sync/presentation/sync_settings_screen.dart';
 import '../../habits/application/habit_providers.dart';
+import '../../habits/data/habit_type.dart';
 import '../../habits/presentation/habit_editor_sheet.dart';
 import '../../habits/presentation/habit_tile.dart';
 import '../../heatmap/application/heatmap_providers.dart';
@@ -28,18 +31,23 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   HeatmapRange _range = HeatmapRange.year;
-  final HeatmapPalette _palette = HeatmapPalette.frostBlue;
+  bool _showArchived = false;
 
   @override
   Widget build(BuildContext context) {
     final stats = ref.watch(dayStatsProvider);
-    final habits = ref.watch(activeHabitsProvider).asData?.value ?? const [];
+    final habitsAsync = ref.watch(activeHabitsProvider);
+    final habits = habitsAsync.asData?.value ?? const <Habit>[];
+    final archived = ref.watch(archivedHabitsProvider).asData?.value ?? const <Habit>[];
     final todayEntries = ref.watch(todayEntriesProvider).asData?.value ?? const [];
     final entryByHabit = {for (final e in todayEntries) e.habitId: e};
     final streak = ref.watch(streakStatsProvider);
     final quote = ref.watch(quoteOfTheDayProvider);
+    final palette = ref.watch(heatmapPaletteProvider);
 
     final heatmapHeight = (MediaQuery.of(context).size.height * 0.40).clamp(230.0, 440.0);
+    // Clear the floating nav pill whatever the device's safe-area is.
+    final bottomClearance = MediaQuery.paddingOf(context).bottom + 96;
 
     return CustomScrollView(
       slivers: [
@@ -55,6 +63,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _ConsistencyHeader(
                       range: _range,
                       onChanged: (r) => setState(() => _range = r),
+                      palette: palette,
+                      onPalette: (p) =>
+                          ref.read(heatmapPaletteProvider.notifier).set(p),
                     ),
                     const SizedBox(height: Insets.md),
                     SizedBox(
@@ -65,13 +76,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             Expanded(
                               child: ContributionHeatmap(
                                 stats: stats,
-                                palette: _palette,
+                                palette: palette,
                                 range: _range,
-                                onDayTap: (d) => showDayDetail(context, d, _palette),
+                                onDayTap: (d) => showDayDetail(context, d, palette),
                               ),
                             ),
                             const SizedBox(height: Insets.md),
-                            HeatmapLegend(palette: _palette),
+                            HeatmapLegend(palette: palette),
                           ],
                         ),
                       ),
@@ -80,16 +91,99 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     _StatsRow(streak: streak),
                     const SizedBox(height: Insets.sm),
                     _SectionLabel(habits.isEmpty ? 'Today' : 'Today · ${habits.length}'),
-                    if (habits.isEmpty)
+                    if (habitsAsync.isLoading && habits.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: Insets.xl),
+                        child: Center(child: CircularProgressIndicator()),
+                      )
+                    else if (habits.isEmpty)
                       _EmptyToday(onAdd: () => showHabitEditor(context))
                     else
                       ...habits.map((h) => HabitTile(habit: h, entry: entryByHabit[h.id])),
-                    const SizedBox(height: 96),
+                    if (archived.isNotEmpty) ...[
+                      const SizedBox(height: Insets.md),
+                      _ArchivedSection(
+                        habits: archived,
+                        expanded: _showArchived,
+                        onToggle: () =>
+                            setState(() => _showArchived = !_showArchived),
+                        onRestore: (h) =>
+                            ref.read(habitServiceProvider).unarchive(h.id),
+                      ),
+                    ],
+                    SizedBox(height: bottomClearance),
                   ]),
                 ),
               ),
             ],
         );
+  }
+}
+
+/// The recoverable shelf: archived habits stay out of the way but are one tap
+/// from returning to the roster.
+class _ArchivedSection extends StatelessWidget {
+  final List<Habit> habits;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final void Function(Habit) onRestore;
+  const _ArchivedSection({
+    required this.habits,
+    required this.expanded,
+    required this.onToggle,
+    required this.onRestore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: onToggle,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: Insets.sm),
+            child: Row(
+              children: [
+                Text('ARCHIVED · ${habits.length}',
+                    style: t.labelSmall?.copyWith(letterSpacing: 1.6)),
+                const SizedBox(width: Insets.sm),
+                Icon(expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 16, color: AppColors.faint),
+              ],
+            ),
+          ),
+        ),
+        if (expanded)
+          ...habits.map((h) => Container(
+                margin: const EdgeInsets.only(bottom: Insets.sm),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Insets.md, vertical: Insets.sm),
+                decoration: BoxDecoration(
+                  color: AppColors.graphite.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(Radii.md),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    Icon(habitIconData(h.iconCodePoint),
+                        size: 16, color: AppColors.muted),
+                    const SizedBox(width: Insets.md),
+                    Expanded(
+                        child: Text(h.name,
+                            style: t.bodyMedium
+                                ?.copyWith(color: AppColors.muted))),
+                    TextButton(
+                      onPressed: () => onRestore(h),
+                      child: const Text('Restore'),
+                    ),
+                  ],
+                ),
+              )),
+      ],
+    );
   }
 }
 
@@ -194,7 +288,14 @@ class _QuoteCard extends StatelessWidget {
 class _ConsistencyHeader extends StatelessWidget {
   final HeatmapRange range;
   final ValueChanged<HeatmapRange> onChanged;
-  const _ConsistencyHeader({required this.range, required this.onChanged});
+  final HeatmapPalette palette;
+  final ValueChanged<HeatmapPalette> onPalette;
+  const _ConsistencyHeader({
+    required this.range,
+    required this.onChanged,
+    required this.palette,
+    required this.onPalette,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -204,6 +305,42 @@ class _ConsistencyHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text('CONSISTENCY', style: t.labelSmall?.copyWith(letterSpacing: 1.6))),
+          PopupMenuButton<HeatmapPalette>(
+            tooltip: 'Heatmap colors',
+            color: AppColors.graphiteHi,
+            onSelected: onPalette,
+            itemBuilder: (_) => [
+              for (final p in HeatmapPalette.all)
+                PopupMenuItem(
+                  value: p,
+                  child: Row(
+                    children: [
+                      for (final c in p.levels.skip(1))
+                        Container(
+                          width: 10,
+                          height: 10,
+                          margin: const EdgeInsets.only(right: 3),
+                          decoration: BoxDecoration(
+                              color: c,
+                              borderRadius: BorderRadius.circular(2)),
+                        ),
+                      const SizedBox(width: Insets.sm),
+                      Text(p.name,
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: p.name == palette.name
+                                  ? FontWeight.w700
+                                  : FontWeight.w400)),
+                    ],
+                  ),
+                ),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Insets.sm),
+              child: Icon(Icons.palette_outlined,
+                  size: 17, color: AppColors.muted),
+            ),
+          ),
           _RangeSwitcher(range: range, onChanged: onChanged),
         ],
       ),

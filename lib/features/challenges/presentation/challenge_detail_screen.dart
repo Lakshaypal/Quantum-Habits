@@ -14,6 +14,7 @@ import '../../habits/data/habit_type.dart';
 import '../application/challenge_providers.dart';
 import 'certificate_view.dart';
 import 'challenge_day_grid.dart';
+import 'challenge_editor_sheet.dart';
 import 'challenges_screen.dart';
 
 class ChallengeDetailScreen extends ConsumerWidget {
@@ -44,7 +45,7 @@ class ChallengeDetailScreen extends ConsumerWidget {
                 padding: const EdgeInsets.symmetric(horizontal: Insets.xl),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    _TopBar(name: challenge.name, color: color, challengeId: challenge.id),
+                    _TopBar(challenge: challenge, color: color, links: links),
                     const SizedBox(height: Insets.md),
                     _HeaderCard(challenge: challenge, progress: p, color: color, status: status),
                     const SizedBox(height: Insets.lg),
@@ -78,6 +79,34 @@ class ChallengeDetailScreen extends ConsumerWidget {
                           entry: entryByHabit[h.id],
                         );
                       }),
+                    if (p.failed) ...[
+                      const SizedBox(height: Insets.xl),
+                      Center(
+                        child: NeoBlock(
+                          color: color,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: Insets.xl, vertical: Insets.md),
+                          onTap: () async {
+                            await ref.read(challengeServiceProvider).restart(
+                                challenge, dayKey(DateTime.now()));
+                            if (context.mounted) Navigator.of(context).pop();
+                          },
+                          child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                            Icon(Icons.replay_rounded, size: 18),
+                            SizedBox(width: Insets.sm),
+                            Text('Restart from today'),
+                          ]),
+                        ),
+                      ),
+                    ],
+                    if (p.unscored) ...[
+                      const SizedBox(height: Insets.lg),
+                      Text(
+                        'No active habits are attached, so days aren’t being '
+                        'scored. Edit the challenge to attach habits.',
+                        style: t.bodySmall?.copyWith(color: AppColors.warmAmber),
+                      ),
+                    ],
                     if (p.complete) ...[
                       const SizedBox(height: Insets.xl),
                       Center(
@@ -109,10 +138,11 @@ class ChallengeDetailScreen extends ConsumerWidget {
 }
 
 class _TopBar extends ConsumerWidget {
-  final String name;
+  final Challenge challenge;
   final Color color;
-  final String challengeId;
-  const _TopBar({required this.name, required this.color, required this.challengeId});
+  final List<ChallengeHabit> links;
+  const _TopBar(
+      {required this.challenge, required this.color, required this.links});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -127,17 +157,54 @@ class _TopBar extends ConsumerWidget {
             visualDensity: VisualDensity.compact,
           ),
           const SizedBox(width: 4),
-          Expanded(child: Text(name, style: t.headlineSmall, overflow: TextOverflow.ellipsis)),
+          Expanded(
+              child: Text(challenge.name,
+                  style: t.headlineSmall, overflow: TextOverflow.ellipsis)),
           PopupMenuButton<String>(
             color: AppColors.graphiteHi,
             icon: const Icon(Icons.more_horiz, size: 20),
             onSelected: (v) async {
               final service = ref.read(challengeServiceProvider);
-              if (v == 'archive') await service.archive(challengeId);
-              if (v == 'delete') await service.remove(challengeId);
-              if (context.mounted) Navigator.of(context).pop();
+              if (v == 'edit') {
+                await showChallengeEditor(context,
+                    existing: challenge, links: links);
+                if (context.mounted) Navigator.of(context).pop();
+                return;
+              }
+              if (v == 'archive') {
+                await service.archive(challenge.id);
+                if (context.mounted) Navigator.of(context).pop();
+                return;
+              }
+              if (v == 'delete') {
+                final sure = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    backgroundColor: AppColors.graphiteHi,
+                    title: Text('Delete “${challenge.name}”?'),
+                    content: const Text(
+                        'The challenge and its progress view are removed. '
+                        'Your habits and their history are untouched.'),
+                    actions: [
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, false),
+                          child: const Text('Cancel')),
+                      TextButton(
+                          onPressed: () => Navigator.pop(ctx, true),
+                          style: TextButton.styleFrom(
+                              foregroundColor: const Color(0xFFE5484D)),
+                          child: const Text('Delete')),
+                    ],
+                  ),
+                );
+                if (sure == true) {
+                  await service.remove(challenge.id);
+                  if (context.mounted) Navigator.of(context).pop();
+                }
+              }
             },
             itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Edit')),
               PopupMenuItem(value: 'archive', child: Text('Archive')),
               PopupMenuItem(value: 'delete', child: Text('Delete')),
             ],

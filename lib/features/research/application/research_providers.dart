@@ -7,10 +7,14 @@ import '../../habits/data/habit_type.dart';
 import '../../heatmap/application/heatmap_providers.dart';
 import '../data/research_templates.dart';
 
-/// Active habits tagged as research metrics.
+/// Active habits tagged as research metrics. Matching is trimmed and
+/// case-insensitive so 'research', 'RESEARCH ' etc. all land on the dashboard.
 final researchHabitsProvider = Provider<List<Habit>>((ref) {
   final habits = ref.watch(activeHabitsProvider).asData?.value ?? const [];
-  return habits.where((h) => h.category == kResearchCategory).toList();
+  final wanted = kResearchCategory.toLowerCase();
+  return habits
+      .where((h) => (h.category ?? '').trim().toLowerCase() == wanted)
+      .toList();
 });
 
 /// Aggregated totals for one research metric.

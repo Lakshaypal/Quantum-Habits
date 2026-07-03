@@ -135,6 +135,11 @@ class _BurnRitualSheet extends ConsumerWidget {
     );
     if (confirmed != true || !context.mounted) return;
 
+    // Destroy FIRST — the promise is cryptographic destruction, so it must
+    // never depend on an animation finishing (back button, app kill, etc.).
+    await ref.read(journalServiceProvider).burn(entry.meta.id);
+    if (!context.mounted) return;
+
     await showGeneralDialog(
       context: context,
       barrierDismissible: false,
@@ -143,21 +148,17 @@ class _BurnRitualSheet extends ConsumerWidget {
       pageBuilder: (_, _, _) => BurnOverlay(
         title: title,
         color: entry.kind.color,
-        onComplete: () async {
-          await ref.read(journalServiceProvider).burn(entry.meta.id);
-        },
       ),
     );
   }
 }
 
-/// The paper-dissolving-into-stars animation. The entry "paper" fades and rises
-/// while a field of stars scatters upward, then [onComplete] runs and it pops.
+/// The paper-dissolving-into-stars animation — purely cosmetic; the entry is
+/// already destroyed before this is shown.
 class BurnOverlay extends StatefulWidget {
   final String title;
   final Color color;
-  final Future<void> Function() onComplete;
-  const BurnOverlay({super.key, required this.title, required this.color, required this.onComplete});
+  const BurnOverlay({super.key, required this.title, required this.color});
 
   @override
   State<BurnOverlay> createState() => _BurnOverlayState();
@@ -185,10 +186,9 @@ class _BurnOverlayState extends State<BurnOverlay> with SingleTickerProviderStat
       );
     });
     _c.forward();
-    _c.addStatusListener((s) async {
+    _c.addStatusListener((s) {
       if (s == AnimationStatus.completed && !_done) {
         _done = true;
-        await widget.onComplete();
         if (mounted) Navigator.of(context).pop();
       }
     });
@@ -202,7 +202,9 @@ class _BurnOverlayState extends State<BurnOverlay> with SingleTickerProviderStat
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
+    return PopScope(
+      canPop: false,
+      child: AnimatedBuilder(
       animation: _c,
       builder: (context, _) {
         final t = _c.value;
@@ -238,6 +240,7 @@ class _BurnOverlayState extends State<BurnOverlay> with SingleTickerProviderStat
           ],
         );
       },
+      ),
     );
   }
 

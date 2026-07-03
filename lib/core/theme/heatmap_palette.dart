@@ -41,5 +41,32 @@ class HeatmapPalette {
     Color(0xFF39D353),
   ]);
 
-  static const all = <HeatmapPalette>[frostBlue, softPurple, warmAmber];
+  static const sageMint = HeatmapPalette('Sage Mint', [
+    Color(0xFF14161B),
+    Color(0xFF173B31),
+    Color(0xFF1F6650),
+    Color(0xFF2E9D78),
+    Color(0xFF5BD6AA),
+  ]);
+
+  static const duskRose = HeatmapPalette('Dusk Rose', [
+    Color(0xFF14161B),
+    Color(0xFF44202E),
+    Color(0xFF7C3350),
+    Color(0xFFBA4D77),
+    Color(0xFFEF7FA6),
+  ]);
+
+  static const all = <HeatmapPalette>[
+    frostBlue,
+    softPurple,
+    warmAmber,
+    sageMint,
+    duskRose,
+    githubGreen,
+  ];
+
+  static HeatmapPalette byName(String? name) => all.firstWhere(
+      (p) => p.name == name,
+      orElse: () => frostBlue);
 }

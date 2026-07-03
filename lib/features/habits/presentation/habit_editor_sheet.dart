@@ -1,23 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/db/database.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/neo_block.dart';
 import '../application/habit_providers.dart';
 import '../data/habit_type.dart';
 
-Future<void> showHabitEditor(BuildContext context) {
+/// Pass [existing] to edit a habit in place — same identity, entries and
+/// heatmap history; only its look and rules change.
+Future<void> showHabitEditor(BuildContext context, {Habit? existing}) {
   return showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (_) => const HabitEditorSheet(),
+    builder: (_) => HabitEditorSheet(existing: existing),
   );
 }
 
 class HabitEditorSheet extends ConsumerStatefulWidget {
-  const HabitEditorSheet({super.key});
+  final Habit? existing;
+  const HabitEditorSheet({super.key, this.existing});
   @override
   ConsumerState<HabitEditorSheet> createState() => _HabitEditorSheetState();
 }
@@ -31,6 +35,31 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
   int _colorIndex = 0;
   int _iconIndex = 0;
   bool _error = false;
+  bool _busy = false;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final h = widget.existing;
+    if (h == null) return;
+    _name.text = h.name;
+    _category.text = h.category ?? '';
+    if (h.targetValue != null) {
+      _target.text = h.targetValue!.truncateToDouble() == h.targetValue!
+          ? h.targetValue!.toInt().toString()
+          : h.targetValue!.toString();
+    }
+    _unit.text = h.unit ?? '';
+    _type = HabitType.values[h.type.clamp(0, HabitType.values.length - 1)];
+    final colorIdx = AppColors.habitSwatches
+        .indexWhere((c) => c.toARGB32() == h.colorValue);
+    if (colorIdx >= 0) _colorIndex = colorIdx;
+    final iconIdx =
+        kHabitIcons.indexWhere((i) => i.codePoint == h.iconCodePoint);
+    if (iconIdx >= 0) _iconIndex = iconIdx;
+  }
 
   @override
   void dispose() {
@@ -42,21 +71,52 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
   }
 
   Future<void> _save() async {
+    if (_busy) return;
     final name = _name.text.trim();
     if (name.isEmpty) {
       setState(() => _error = true);
       return;
     }
-    await ref.read(habitServiceProvider).addHabit(
+    setState(() => _busy = true);
+    try {
+      final service = ref.read(habitServiceProvider);
+      final category =
+          _category.text.trim().isEmpty ? null : _category.text.trim();
+      final target =
+          _type.needsTarget ? double.tryParse(_target.text.trim()) : null;
+      final unit = _type.needsTarget && _unit.text.trim().isNotEmpty
+          ? _unit.text.trim()
+          : null;
+      if (_isEdit) {
+        await service.updateHabit(
+          widget.existing!,
           name: name,
           type: _type,
           color: AppColors.habitSwatches[_colorIndex],
           icon: kHabitIcons[_iconIndex],
-          category: _category.text.trim().isEmpty ? null : _category.text.trim(),
-          target: _type.needsTarget ? double.tryParse(_target.text.trim()) : null,
-          unit: _type.needsTarget && _unit.text.trim().isNotEmpty ? _unit.text.trim() : null,
+          category: category,
+          target: target,
+          unit: unit,
         );
-    if (mounted) Navigator.of(context).pop();
+      } else {
+        await service.addHabit(
+          name: name,
+          type: _type,
+          color: AppColors.habitSwatches[_colorIndex],
+          icon: kHabitIcons[_iconIndex],
+          category: category,
+          target: target,
+          unit: unit,
+        );
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not save the habit: $e')));
+      }
+    }
   }
 
   @override
@@ -89,7 +149,7 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
               ),
             ),
             const SizedBox(height: Insets.lg),
-            Text('New habit', style: t.headlineSmall),
+            Text(_isEdit ? 'Edit habit' : 'New habit', style: t.headlineSmall),
             const SizedBox(height: Insets.lg),
             TextField(
               controller: _name,
@@ -200,12 +260,12 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
               alignment: Alignment.centerRight,
               child: NeoBlock(
                 color: accent,
-                onTap: _save,
+                onTap: _busy ? null : _save,
                 padding: const EdgeInsets.symmetric(horizontal: Insets.xl, vertical: Insets.md),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.add, size: 18),
-                  SizedBox(width: Insets.sm),
-                  Text('Create habit'),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(_isEdit ? Icons.check : Icons.add, size: 18),
+                  const SizedBox(width: Insets.sm),
+                  Text(_isEdit ? 'Save changes' : 'Create habit'),
                 ]),
               ),
             ),

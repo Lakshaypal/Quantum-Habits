@@ -14,18 +14,23 @@ import '../../../core/util/day.dart';
 const _mon = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 String _fmtDate(DateTime d) => '${_mon[d.month]} ${d.day}, ${d.year}';
 
-Future<void> showChallengeEditor(BuildContext context) {
+/// Pass [existing] (with its current [links]) to edit a running challenge —
+/// progress is preserved; only the rules, look and roster change.
+Future<void> showChallengeEditor(BuildContext context,
+    {Challenge? existing, List<ChallengeHabit> links = const []}) {
   return showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (_) => const ChallengeEditorSheet(),
+    builder: (_) => ChallengeEditorSheet(existing: existing, links: links),
   );
 }
 
 // 0 excluded · 1 mandatory · 2 flexible
 class ChallengeEditorSheet extends ConsumerStatefulWidget {
-  const ChallengeEditorSheet({super.key});
+  final Challenge? existing;
+  final List<ChallengeHabit> links;
+  const ChallengeEditorSheet({super.key, this.existing, this.links = const []});
   @override
   ConsumerState<ChallengeEditorSheet> createState() => _ChallengeEditorSheetState();
 }
@@ -39,6 +44,26 @@ class _ChallengeEditorSheetState extends ConsumerState<ChallengeEditorSheet> {
   IconData _icon = Icons.flag_rounded;
   final Map<String, int> _habitState = {};
   bool _error = false;
+  String? _habitError;
+  bool _busy = false;
+
+  bool get _isEdit => widget.existing != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final c = widget.existing;
+    if (c == null) return;
+    _name.text = c.name;
+    _days = daysBetween(dayKey(c.startDate), dayKey(c.endDate)) + 1;
+    _mode = ChallengeModeX.fromIndex(c.mode);
+    _allowedMisses = c.allowedMisses;
+    _color = Color(c.colorValue);
+    if (c.iconCodePoint != null) _icon = habitIconData(c.iconCodePoint!);
+    for (final l in widget.links) {
+      _habitState[l.habitId] = l.mandatory ? 1 : 2;
+    }
+  }
 
   @override
   void dispose() {
@@ -58,29 +83,63 @@ class _ChallengeEditorSheetState extends ConsumerState<ChallengeEditorSheet> {
   }
 
   Future<void> _save() async {
+    if (_busy) return;
     final name = _name.text.trim();
     if (name.isEmpty) {
       setState(() => _error = true);
       return;
     }
-    final start = DateTime.now();
-    final end = addDays(dayKey(start), _days - 1);
     final habits = <({String habitId, bool mandatory})>[];
     _habitState.forEach((id, state) {
       if (state == 1) habits.add((habitId: id, mandatory: true));
       if (state == 2) habits.add((habitId: id, mandatory: false));
     });
-    await ref.read(challengeServiceProvider).create(
+    // A challenge with no habits has nothing to score — every day would
+    // count as a miss.
+    if (habits.isEmpty) {
+      setState(() =>
+          _habitError = 'Attach at least one habit — it’s what gets scored.');
+      return;
+    }
+    setState(() => _busy = true);
+    try {
+      final service = ref.read(challengeServiceProvider);
+      if (_isEdit) {
+        final c = widget.existing!;
+        await service.update(
+          c,
+          name: name,
+          description: c.description,
+          start: c.startDate,
+          end: addDays(dayKey(c.startDate), _days - 1),
+          mode: _mode,
+          allowedMisses: _mode == ChallengeMode.flexible ? _allowedMisses : 0,
+          color: _color,
+          icon: _icon,
+          habits: habits,
+          currentLinks: widget.links,
+        );
+      } else {
+        final start = DateTime.now();
+        await service.create(
           name: name,
           start: start,
-          end: end,
+          end: addDays(dayKey(start), _days - 1),
           mode: _mode,
           allowedMisses: _mode == ChallengeMode.flexible ? _allowedMisses : 0,
           color: _color,
           icon: _icon,
           habits: habits,
         );
-    if (mounted) Navigator.of(context).pop();
+      }
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        setState(() => _busy = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not save the challenge: $e')));
+      }
+    }
   }
 
   @override
@@ -117,7 +176,8 @@ class _ChallengeEditorSheetState extends ConsumerState<ChallengeEditorSheet> {
               ),
             ),
             const SizedBox(height: Insets.lg),
-            Text('New challenge', style: t.headlineSmall),
+            Text(_isEdit ? 'Edit challenge' : 'New challenge',
+                style: t.headlineSmall),
             const SizedBox(height: Insets.lg),
             Text('TEMPLATES', style: t.labelSmall),
             const SizedBox(height: Insets.sm),
@@ -175,7 +235,11 @@ class _ChallengeEditorSheetState extends ConsumerState<ChallengeEditorSheet> {
               ],
             ),
             const SizedBox(height: Insets.sm),
-            Text('Starts today · ends ${_fmtDate(end)}', style: t.bodySmall),
+            Text(
+                _isEdit
+                    ? 'Started ${_fmtDate(dayKey(widget.existing!.startDate))} · ends ${_fmtDate(end)}'
+                    : 'Starts today · ends ${_fmtDate(end)}',
+                style: t.bodySmall),
             const SizedBox(height: Insets.lg),
             Text('MODE', style: t.labelSmall),
             const SizedBox(height: Insets.sm),
@@ -250,19 +314,27 @@ class _ChallengeEditorSheetState extends ConsumerState<ChallengeEditorSheet> {
               ...habits.map((h) => _HabitPicker(
                     habit: h,
                     state: _habitState[h.id] ?? 0,
-                    onTap: () => setState(() => _habitState[h.id] = ((_habitState[h.id] ?? 0) + 1) % 3),
+                    onTap: () => setState(() {
+                      _habitState[h.id] = ((_habitState[h.id] ?? 0) + 1) % 3;
+                      _habitError = null;
+                    }),
                   )),
+            if (_habitError != null) ...[
+              const SizedBox(height: Insets.sm),
+              Text(_habitError!,
+                  style: t.bodySmall?.copyWith(color: AppColors.warmAmber)),
+            ],
             const SizedBox(height: Insets.xl),
             Align(
               alignment: Alignment.centerRight,
               child: NeoBlock(
                 color: _color,
-                onTap: _save,
+                onTap: _busy ? null : _save,
                 padding: const EdgeInsets.symmetric(horizontal: Insets.xl, vertical: Insets.md),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.flag_rounded, size: 18),
-                  SizedBox(width: Insets.sm),
-                  Text('Start challenge'),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(_isEdit ? Icons.check : Icons.flag_rounded, size: 18),
+                  const SizedBox(width: Insets.sm),
+                  Text(_isEdit ? 'Save changes' : 'Start challenge'),
                 ]),
               ),
             ),
