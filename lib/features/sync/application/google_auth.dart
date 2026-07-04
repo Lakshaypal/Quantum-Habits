@@ -6,6 +6,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// Persisted OAuth state for the connected Google account. Client id/secret
@@ -65,8 +66,24 @@ class GoogleAuth {
       'https://www.googleapis.com/auth/drive.appdata openid email';
   static const _storage = FlutterSecureStorage();
 
+  static Future<File> _fallbackFile() async {
+    final dir = await getApplicationSupportDirectory();
+    return File('${dir.path}/gdrive_credentials.json');
+  }
+
   static Future<GoogleCredentials?> stored() async {
-    final raw = await _storage.read(key: _storageKey);
+    String? raw;
+    // Keychain first; fall back to the sandboxed support dir (some setups —
+    // e.g. ad-hoc-signed macOS builds — reject keychain access outright).
+    try {
+      raw = await _storage.read(key: _storageKey);
+    } catch (_) {}
+    if (raw == null) {
+      try {
+        final f = await _fallbackFile();
+        if (await f.exists()) raw = await f.readAsString();
+      } catch (_) {}
+    }
     if (raw == null) return null;
     try {
       return GoogleCredentials.fromJson(jsonDecode(raw) as Map<String, dynamic>);
@@ -75,10 +92,27 @@ class GoogleAuth {
     }
   }
 
-  static Future<void> persist(GoogleCredentials c) =>
-      _storage.write(key: _storageKey, value: jsonEncode(c.toJson()));
+  /// Never lets a storage failure break the connect flow: keychain when the
+  /// platform allows it, else a file inside the app's private container.
+  static Future<void> persist(GoogleCredentials c) async {
+    final json = jsonEncode(c.toJson());
+    try {
+      await _storage.write(key: _storageKey, value: json);
+      return;
+    } catch (_) {}
+    final f = await _fallbackFile();
+    await f.writeAsString(json, flush: true);
+  }
 
-  static Future<void> forget() => _storage.delete(key: _storageKey);
+  static Future<void> forget() async {
+    try {
+      await _storage.delete(key: _storageKey);
+    } catch (_) {}
+    try {
+      final f = await _fallbackFile();
+      if (await f.exists()) await f.delete();
+    } catch (_) {}
+  }
 
   /// Runs the interactive consent flow. Returns persisted credentials.
   static Future<GoogleCredentials> connect(
