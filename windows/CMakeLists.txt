@@ -10,6 +10,11 @@ set(BINARY_NAME "quantum_habits")
 # versions of CMake.
 cmake_policy(VERSION 3.14...3.25)
 
+# local_auth_windows still includes <experimental/coroutine>, which recent
+# MSVC turns into a hard error; Microsoft's documented escape hatch until the
+# plugin migrates to C++20 <coroutine>:
+add_compile_definitions(_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)
+
 # Define build configuration option.
 get_property(IS_MULTICONFIG GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(IS_MULTICONFIG)

@@ -10,6 +10,7 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_dispatch:
 
 env:
   RELEASE_REPO: Lakshaypal/quantum-habits-releases
