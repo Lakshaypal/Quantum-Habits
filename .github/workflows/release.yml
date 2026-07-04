@@ -27,7 +27,10 @@ jobs:
       - run: flutter test
       - run: flutter build apk --release --no-tree-shake-icons
       - run: mv build/app/outputs/flutter-apk/app-release.apk QuantumHabits-android.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: QuantumHabits-android, path: QuantumHabits-android.apk }
       - uses: softprops/action-gh-release@v2
+        continue-on-error: true
         with:
           repository: ${{ env.RELEASE_REPO }}
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -45,7 +48,10 @@ jobs:
       - run: |
           cd "build/macos/Build/Products/Release"
           ditto -c -k --sequesterRsrc --keepParent "quantum_habits.app" "$GITHUB_WORKSPACE/QuantumHabits-macos.zip"
+      - uses: actions/upload-artifact@v4
+        with: { name: QuantumHabits-macos, path: QuantumHabits-macos.zip }
       - uses: softprops/action-gh-release@v2
+        continue-on-error: true
         with:
           repository: ${{ env.RELEASE_REPO }}
           token: ${{ secrets.RELEASE_TOKEN }}
@@ -62,7 +68,10 @@ jobs:
       - run: flutter build windows --release --no-tree-shake-icons
       - run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath QuantumHabits-windows.zip
         shell: pwsh
+      - uses: actions/upload-artifact@v4
+        with: { name: QuantumHabits-windows, path: QuantumHabits-windows.zip }
       - uses: softprops/action-gh-release@v2
+        continue-on-error: true
         with:
           repository: ${{ env.RELEASE_REPO }}
           token: ${{ secrets.RELEASE_TOKEN }}
