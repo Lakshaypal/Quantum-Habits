@@ -11,10 +11,11 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/app_version.dart';
 import '../../core/db/database.dart';
 
-/// GitHub repo that hosts releases, as `owner/name`. Tag releases `vX.Y.Z` —
-/// the CI workflow (.github/workflows/release.yml) attaches the platform
-/// artifacts and every installed copy self-updates from them.
-const kUpdateRepo = 'Lakshaypal/quantum-habits';
+/// Public, binaries-only repo that hosts releases (the source code lives in
+/// a separate private repo). Tag the private repo `vX.Y.Z` — its CI builds
+/// the artifacts and publishes the release here, and every installed copy
+/// self-updates from it.
+const kUpdateRepo = 'Lakshaypal/quantum-habits-releases';
 
 class UpdateInfo {
   final String version; // e.g. "2.1.0"

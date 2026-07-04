@@ -1,15 +1,18 @@
 name: Release
 
-# Tag a version (git tag v2.1.0 && git push --tags) and this builds the
-# macOS, Windows and Android artifacts and attaches them to a GitHub Release.
-# The in-app updater (lib/features/updates/update_service.dart) reads that
-# release, so shipping an update to every installed device = pushing one tag.
+# Tag a version in THIS (private) repo (git tag v2.1.0 && git push --tags):
+# each job builds a platform artifact and publishes it to the PUBLIC
+# binaries-only repo (Lakshaypal/quantum-habits-releases), which the in-app
+# updater polls. Shipping an update to every installed device = one tag.
+#
+# Requires a repo secret RELEASE_TOKEN: any GitHub token that can write to
+# the public releases repo (Settings → Secrets → Actions).
 on:
   push:
     tags: ['v*']
 
-permissions:
-  contents: write
+env:
+  RELEASE_REPO: Lakshaypal/quantum-habits-releases
 
 jobs:
   android:
@@ -26,6 +29,9 @@ jobs:
       - run: mv build/app/outputs/flutter-apk/app-release.apk QuantumHabits-android.apk
       - uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ env.RELEASE_REPO }}
+          token: ${{ secrets.RELEASE_TOKEN }}
+          tag_name: ${{ github.ref_name }}
           files: QuantumHabits-android.apk
 
   macos:
@@ -41,6 +47,9 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "quantum_habits.app" "$GITHUB_WORKSPACE/QuantumHabits-macos.zip"
       - uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ env.RELEASE_REPO }}
+          token: ${{ secrets.RELEASE_TOKEN }}
+          tag_name: ${{ github.ref_name }}
           files: QuantumHabits-macos.zip
 
   windows:
@@ -55,4 +64,7 @@ jobs:
         shell: pwsh
       - uses: softprops/action-gh-release@v2
         with:
+          repository: ${{ env.RELEASE_REPO }}
+          token: ${{ secrets.RELEASE_TOKEN }}
+          tag_name: ${{ github.ref_name }}
           files: QuantumHabits-windows.zip

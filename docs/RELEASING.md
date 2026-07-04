@@ -1,21 +1,20 @@
 # Shipping a release (macOS + Windows + Android)
 
-The app is standalone and self-updating: every installed copy checks the
-GitHub Releases of `lakshayfeb/quantum-habits` (see `kUpdateRepo` in
-`lib/features/updates/update_service.dart`) and offers "Download & install"
-in-app when a newer version exists.
+The app is standalone and self-updating. Split-repo layout:
 
-## One-time setup
+- **`Lakshaypal/quantum-habits`** (PRIVATE) — the source code + CI.
+- **`Lakshaypal/quantum-habits-releases`** (PUBLIC, binaries only) — hosts
+  the GitHub Releases. Every installed copy polls it (see `kUpdateRepo` in
+  `lib/features/updates/update_service.dart`), shows an in-app banner when a
+  newer version exists, and installs it in place.
 
-1. Create the GitHub repo and push:
-   ```bash
-   cd "~/Desktop/Personal OS"
-   gh repo create lakshayfeb/quantum-habits --private --source=. --push
-   ```
-   (Private repos work for CI, but the in-app updater downloads release
-   assets anonymously — make the repo **public**, or at least its releases.)
-2. That's it — no tokens or secrets needed. The workflow only uses the
-   built-in `GITHUB_TOKEN`.
+## One-time setup (already done on this machine)
+
+1. Private code repo pushed; public releases repo created.
+2. `RELEASE_TOKEN` secret on the private repo: any GitHub token that can
+   write releases to the public repo. If CI ever fails with 401/403, mint a
+   fine-grained PAT (Contents: read/write on quantum-habits-releases) and
+   re-run `gh secret set RELEASE_TOKEN --repo Lakshaypal/quantum-habits`.
 
 ## Every release
 
@@ -27,12 +26,14 @@ in-app when a newer version exists.
    git tag v2.1.0
    git push && git push --tags
    ```
-3. GitHub Actions builds and attaches:
+3. GitHub Actions builds and publishes to the public releases repo:
    - `QuantumHabits-macos.zip`
    - `QuantumHabits-windows.zip`  ← the only way to get Windows builds
      (Flutter Windows apps can't be built from a Mac)
    - `QuantumHabits-android.apk`
-4. Every device sees the update under Home → cloud icon → App updates.
+4. Every installed app notices within ~12h of its next launch (or
+   immediately via Home → cloud icon → Check for updates), shows the
+   "Version X is ready" banner, and updates itself in place.
 
 Notes:
 - Builds are unsigned. macOS users may need right-click → Open the first
