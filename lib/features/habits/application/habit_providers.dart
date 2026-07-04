@@ -47,7 +47,11 @@ class HabitService {
   final AppDatabase _db;
   HabitService(this._db);
 
+  /// [id] may be supplied for template habits: a deterministic id means the
+  /// same template seeded on two devices merges into ONE habit instead of
+  /// duplicating.
   Future<void> addHabit({
+    String? id,
     required String name,
     required HabitType type,
     required Color color,
@@ -57,7 +61,7 @@ class HabitService {
     String? unit,
   }) {
     return _db.insertHabit(HabitsCompanion.insert(
-      id: _uuid.v4(),
+      id: id ?? _uuid.v4(),
       name: name.trim(),
       type: Value(type.index),
       colorValue: color.toARGB32(),

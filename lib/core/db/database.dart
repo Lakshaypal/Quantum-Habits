@@ -125,32 +125,53 @@ class AppDatabase extends _$AppDatabase {
 
   static int _now() => DateTime.now().millisecondsSinceEpoch;
 
+  /// addColumn that tolerates the column already existing. A migration can
+  /// be re-attempted after a partial run (force-kill mid-upgrade, or two
+  /// instances racing) — sqlite's user_version only advances on success, so
+  /// every step must be safe to replay.
+  Future<void> _addColumnSafe(
+      Migrator m, TableInfo table, GeneratedColumn column) async {
+    try {
+      await m.addColumn(table, column);
+    } on Exception catch (e) {
+      if (!e.toString().contains('duplicate column')) rethrow;
+    }
+  }
+
+  Future<void> _createTableSafe(Migrator m, TableInfo table) async {
+    try {
+      await m.createTable(table);
+    } on Exception catch (e) {
+      if (!e.toString().contains('already exists')) rethrow;
+    }
+  }
+
   @override
   MigrationStrategy get migration => MigrationStrategy(
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
           if (from < 2) {
-            await m.createTable(challenges);
-            await m.createTable(challengeHabits);
+            await _createTableSafe(m, challenges);
+            await _createTableSafe(m, challengeHabits);
           }
           if (from < 3) {
-            await m.createTable(journalEntries);
-            await m.createTable(keyValues);
+            await _createTableSafe(m, journalEntries);
+            await _createTableSafe(m, keyValues);
           }
           if (from < 4) {
-            await m.addColumn(habits, habits.deletedAt);
+            await _addColumnSafe(m, habits, habits.deletedAt);
           }
           if (from < 5) {
-            await m.addColumn(habits, habits.updatedAtMs);
-            await m.addColumn(habitEntries, habitEntries.deleted);
-            await m.addColumn(habitEntries, habitEntries.updatedAtMs);
-            await m.addColumn(challenges, challenges.deleted);
-            await m.addColumn(challenges, challenges.updatedAtMs);
-            await m.addColumn(challengeHabits, challengeHabits.deleted);
-            await m.addColumn(challengeHabits, challengeHabits.updatedAtMs);
-            await m.addColumn(journalEntries, journalEntries.deleted);
-            await m.addColumn(journalEntries, journalEntries.updatedAtMs);
-            await m.addColumn(keyValues, keyValues.updatedAtMs);
+            await _addColumnSafe(m, habits, habits.updatedAtMs);
+            await _addColumnSafe(m, habitEntries, habitEntries.deleted);
+            await _addColumnSafe(m, habitEntries, habitEntries.updatedAtMs);
+            await _addColumnSafe(m, challenges, challenges.deleted);
+            await _addColumnSafe(m, challenges, challenges.updatedAtMs);
+            await _addColumnSafe(m, challengeHabits, challengeHabits.deleted);
+            await _addColumnSafe(m, challengeHabits, challengeHabits.updatedAtMs);
+            await _addColumnSafe(m, journalEntries, journalEntries.deleted);
+            await _addColumnSafe(m, journalEntries, journalEntries.updatedAtMs);
+            await _addColumnSafe(m, keyValues, keyValues.updatedAtMs);
             // Backfill sensible merge timestamps for pre-sync-v2 rows
             // (drift stores dateTime as unix seconds).
             await customStatement(

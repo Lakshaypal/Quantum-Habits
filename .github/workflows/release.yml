@@ -69,12 +69,25 @@ jobs:
       - run: flutter build windows --release --no-tree-shake-icons
       - run: Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath QuantumHabits-windows.zip
         shell: pwsh
+      - name: Build installer (Start menu / search / Add-Remove entry)
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart("v")
+          if (-not $v) { $v = "0.0.0" }
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=$v "/DSourceDir=$env:GITHUB_WORKSPACE\build\windows\x64\runner\Release" windows\installer.iss
+          Move-Item windows\Output\QuantumHabits-windows-setup.exe QuantumHabits-windows-setup.exe
+        shell: pwsh
       - uses: actions/upload-artifact@v4
-        with: { name: QuantumHabits-windows, path: QuantumHabits-windows.zip }
+        with:
+          name: QuantumHabits-windows
+          path: |
+            QuantumHabits-windows.zip
+            QuantumHabits-windows-setup.exe
       - uses: softprops/action-gh-release@v2
         continue-on-error: true
         with:
           repository: ${{ env.RELEASE_REPO }}
           token: ${{ secrets.RELEASE_TOKEN }}
           tag_name: ${{ github.ref_name }}
-          files: QuantumHabits-windows.zip
+          files: |
+            QuantumHabits-windows.zip
+            QuantumHabits-windows-setup.exe

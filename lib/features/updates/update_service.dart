@@ -115,14 +115,19 @@ class UpdateService {
     if (!_isNewer(tag, current)) return UpToDate(current);
 
     final assets = (json['assets'] as List?) ?? const [];
-    final wanted = _platformAssetSuffix();
+    // Ordered by preference — e.g. Windows prefers the installer (Start
+    // menu + silent self-update) but falls back to the portable zip.
+    final wanted = _platformAssetSuffixes();
     String? assetUrl;
-    for (final a in assets) {
-      final name = ((a as Map)['name'] as String? ?? '').toLowerCase();
-      if (wanted != null && name.endsWith(wanted)) {
-        assetUrl = a['browser_download_url'] as String?;
-        break;
+    for (final suffix in wanted) {
+      for (final a in assets) {
+        final name = ((a as Map)['name'] as String? ?? '').toLowerCase();
+        if (name.endsWith(suffix)) {
+          assetUrl = a['browser_download_url'] as String?;
+          break;
+        }
       }
+      if (assetUrl != null) break;
     }
     return UpdateAvailable(
       current,
@@ -233,6 +238,15 @@ open "$bundle"
 
   Future<void> _installWindows(List<int> bytes) async {
     final tmp = await Directory.systemTemp.createTemp('qh_update');
+    // Installer asset: run it silently — Inno closes the app, swaps files,
+    // recreates shortcuts and relaunches (see windows/installer.iss).
+    if (_looksLikeExe(bytes)) {
+      final setup = File('${tmp.path}\\QuantumHabits-setup.exe');
+      await setup.writeAsBytes(bytes, flush: true);
+      await Process.start(setup.path, ['/SILENT'],
+          mode: ProcessStartMode.detached);
+      exit(0);
+    }
     final zip = File('${tmp.path}\\update.zip');
     await zip.writeAsBytes(bytes, flush: true);
     final unpacked = '${tmp.path}\\unpacked';
@@ -257,11 +271,15 @@ start "" "$installDir\\$exeName"
     exit(0);
   }
 
-  static String? _platformAssetSuffix() {
-    if (Platform.isMacOS) return '-macos.zip';
-    if (Platform.isWindows) return '-windows.zip';
-    if (Platform.isAndroid) return '-android.apk';
-    return null;
+  /// PE executables start with the DOS 'MZ' magic.
+  static bool _looksLikeExe(List<int> bytes) =>
+      bytes.length > 2 && bytes[0] == 0x4D && bytes[1] == 0x5A;
+
+  static List<String> _platformAssetSuffixes() {
+    if (Platform.isMacOS) return const ['-macos.zip'];
+    if (Platform.isWindows) return const ['-windows-setup.exe', '-windows.zip'];
+    if (Platform.isAndroid) return const ['-android.apk'];
+    return const [];
   }
 
   /// Semver-ish compare, tolerant of missing parts ("2.1" == "2.1.0").

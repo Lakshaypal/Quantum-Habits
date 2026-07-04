@@ -77,15 +77,28 @@ final researchDayStatsProvider = Provider<Map<DateTime, DayStat>>((ref) {
   };
 });
 
-/// Creates the preset research metrics as habits (idempotent-ish: skips names
-/// that already exist in the Research category).
+/// Deterministic habit id for a template, identical on every device — the
+/// key to seeding never duplicating across installs.
+String researchTemplateId(String name) =>
+    'research-${name.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-')}';
+
+/// Creates the preset research metrics as habits. Truly idempotent: ids are
+/// deterministic, existence is checked against the database (not a possibly
+/// stale provider snapshot), and re-running (or running on a second device)
+/// converges to a single copy of each metric after sync.
 final researchSetupProvider = Provider<Future<void> Function()>((ref) {
   return () async {
+    final db = ref.read(databaseProvider);
     final service = ref.read(habitServiceProvider);
-    final existing = ref.read(researchHabitsProvider).map((h) => h.name).toSet();
+    final existing = (await db.allHabits())
+        .where((h) => h.deletedAt == null)
+        .map((h) => h.id)
+        .toSet();
     for (final tpl in kResearchTemplates) {
-      if (existing.contains(tpl.name)) continue;
+      final id = researchTemplateId(tpl.name);
+      if (existing.contains(id)) continue;
       await service.addHabit(
+        id: id,
         name: tpl.name,
         type: tpl.type,
         color: tpl.color,
@@ -97,3 +110,33 @@ final researchSetupProvider = Provider<Future<void> Function()>((ref) {
     }
   };
 });
+
+/// One-shot repair for installs that seeded templates with random ids on
+/// multiple devices: among live Research habits sharing a template name,
+/// keeps the oldest (deterministic across devices) and soft-deletes the
+/// rest — history is preserved and the same winner is chosen everywhere,
+/// so sync converges instead of multiplying.
+Future<void> dedupeResearchTemplates(AppDatabase db) async {
+  final templateNames =
+      kResearchTemplates.map((t) => t.name.toLowerCase()).toSet();
+  final habits = (await db.allHabits())
+      .where((h) =>
+          h.deletedAt == null &&
+          (h.category ?? '').trim().toLowerCase() ==
+              kResearchCategory.toLowerCase() &&
+          templateNames.contains(h.name.trim().toLowerCase()))
+      .toList();
+  final byName = <String, List<Habit>>{};
+  for (final h in habits) {
+    byName.putIfAbsent(h.name.trim().toLowerCase(), () => []).add(h);
+  }
+  for (final group in byName.values.where((g) => g.length > 1)) {
+    group.sort((a, b) {
+      final byCreated = a.createdAt.compareTo(b.createdAt);
+      return byCreated != 0 ? byCreated : a.id.compareTo(b.id);
+    });
+    for (final loser in group.skip(1)) {
+      await db.deleteHabit(loser.id, DateTime.now());
+    }
+  }
+}
