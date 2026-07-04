@@ -13,8 +13,9 @@
 /// OAuth docs — embedding them is the standard pattern for desktop/mobile
 /// apps. Access to a user's Drive is still gated by their own Google login
 /// and consent.
-const kDefaultGoogleClientId = '';
-const kDefaultGoogleClientSecret = '';
+const kDefaultGoogleClientId =
+    '1032567323356-jcrts74acnbpmacgr5a19d76bdeantlo.apps.googleusercontent.com';
+const kDefaultGoogleClientSecret = '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';
 
 bool get hasEmbeddedGoogleClient =>
     kDefaultGoogleClientId.isNotEmpty && kDefaultGoogleClientSecret.isNotEmpty;
