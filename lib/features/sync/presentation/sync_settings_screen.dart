@@ -8,6 +8,7 @@ import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/neo_block.dart';
 import '../../habits/application/habit_providers.dart' show databaseProvider;
 import '../../updates/update_service.dart';
+import '../application/oauth_defaults.dart';
 import '../application/sync_engine.dart';
 
 const _ok = Color(0xFF34D399);
@@ -29,6 +30,7 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
   String? _localError;
   bool _checkingUpdate = false;
   UpdateCheck? _updateCheck;
+  bool _showAdvanced = false;
 
   @override
   void initState() {
@@ -113,6 +115,23 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
     );
   }
 
+  Future<void> _connect(SyncEngine engine) => _run(() async {
+        final customId = _clientId.text.trim();
+        final customSecret = _clientSecret.text.trim();
+        if (customId.isNotEmpty && customSecret.isNotEmpty) {
+          await engine.connect(customId, customSecret);
+        } else if (hasEmbeddedGoogleClient) {
+          await engine.connect(
+              kDefaultGoogleClientId, kDefaultGoogleClientSecret);
+        } else {
+          throw Exception(
+              'This build has no embedded Google client yet — either fill '
+              'the advanced fields below, or (as the developer) set it in '
+              'lib/features/sync/application/oauth_defaults.dart. '
+              'docs/GOOGLE_DRIVE.md walks through both.');
+        }
+      });
+
   List<Widget> _buildConnect(TextTheme t, SyncEngine engine) => [
         Text('GOOGLE DRIVE', style: t.labelSmall),
         const SizedBox(height: 6),
@@ -123,36 +142,46 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
           style: t.bodySmall,
         ),
         const SizedBox(height: Insets.lg),
-        _field(_clientId, 'OAuth client ID',
-            hint: 'xxxx.apps.googleusercontent.com'),
-        const SizedBox(height: Insets.md),
-        _field(_clientSecret, 'OAuth client secret',
-            hint: 'GOCSPX-…', obscure: true),
-        const SizedBox(height: Insets.lg),
+        // The whole flow for customers: one tap → Google consent → done.
         NeoBlock(
           color: AppColors.electricBlue,
           foreground: Colors.white,
-          onTap: _busy
-              ? null
-              : () => _run(() async {
-                    if (_clientId.text.trim().isEmpty ||
-                        _clientSecret.text.trim().isEmpty) {
-                      throw Exception(
-                          'Paste your OAuth client ID and secret first — '
-                          'docs/GOOGLE_DRIVE.md is the 5-minute walkthrough.');
-                    }
-                    await engine.connect(
-                        _clientId.text, _clientSecret.text);
-                  }),
+          onTap: _busy ? null : () => _connect(engine),
           child: const Center(child: Text('Connect Google Drive')),
         ),
-        const SizedBox(height: Insets.md),
+        const SizedBox(height: Insets.sm),
         Text(
-          'One-time setup: create a free "Desktop app" OAuth client in Google '
-          'Cloud Console and paste it above — the full walkthrough lives in '
-          'docs/GOOGLE_DRIVE.md. The same client ID works on all your devices.',
+          'Your browser opens; pick your Google account and approve. That’s it.',
           style: t.bodySmall,
         ),
+        const SizedBox(height: Insets.lg),
+        GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+          child: Row(
+            children: [
+              Text('ADVANCED — USE YOUR OWN GOOGLE CLIENT',
+                  style: t.labelSmall),
+              const SizedBox(width: Insets.sm),
+              Icon(_showAdvanced ? Icons.expand_less : Icons.expand_more,
+                  size: 16, color: AppColors.muted),
+            ],
+          ),
+        ),
+        if (_showAdvanced) ...[
+          const SizedBox(height: Insets.md),
+          _field(_clientId, 'OAuth client ID',
+              hint: 'xxxx.apps.googleusercontent.com'),
+          const SizedBox(height: Insets.md),
+          _field(_clientSecret, 'OAuth client secret',
+              hint: 'GOCSPX-…', obscure: true),
+          const SizedBox(height: Insets.sm),
+          Text(
+            'Only for self-hosting your own OAuth client '
+            '(docs/GOOGLE_DRIVE.md). Leave empty to use the app’s built-in one.',
+            style: t.bodySmall,
+          ),
+        ],
       ];
 
   List<Widget> _buildConnected(
