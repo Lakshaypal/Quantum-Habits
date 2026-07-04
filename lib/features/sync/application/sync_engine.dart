@@ -250,6 +250,12 @@ class SyncEngine extends Notifier<SyncStatus> {
       VaultData remote;
       try {
         remote = VaultCodec.decode(await drive.download(info.id));
+      } on VaultTooNewException catch (e) {
+        // A newer app wrote this vault — never overwrite it from here.
+        _syncing = false;
+        state = state.copyWith(phase: SyncPhase.error, message: e.toString());
+        _maybeRerun();
+        return;
       } on FormatException {
         // Unreadable/corrupt vault: self-heal by re-seeding from local data
         // (local is never mutated on this path, so nothing can be lost here).

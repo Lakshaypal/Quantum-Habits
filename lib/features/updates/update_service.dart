@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/app_version.dart';
 import '../../core/db/database.dart';
+import '../habits/application/habit_providers.dart' show databaseProvider;
 
 /// Public, binaries-only repo that hosts releases (the source code lives in
 /// a separate private repo). Tag the private repo `vX.Y.Z` — its CI builds
@@ -57,6 +58,27 @@ class PendingUpdate extends Notifier<UpdateAvailable?> {
 }
 
 final updateServiceProvider = Provider<UpdateService>((_) => UpdateService());
+
+/// Fully automatic updates (per-device, default on). Desktop installs happen
+/// silently when the app leaves the foreground; Android always goes through
+/// the system installer prompt (the OS requires the user's confirmation).
+final autoUpdateProvider =
+    NotifierProvider<AutoUpdateNotifier, bool>(AutoUpdateNotifier.new);
+
+class AutoUpdateNotifier extends Notifier<bool> {
+  static const _key = 'pref_auto_update';
+
+  @override
+  bool build() {
+    ref.read(databaseProvider).getKV(_key).then((v) => state = v != '0');
+    return true;
+  }
+
+  Future<void> set(bool on) async {
+    state = on;
+    await ref.read(databaseProvider).setKV(_key, on ? '1' : '0');
+  }
+}
 
 /// Self-updates for a standalone app: checks GitHub Releases on launch,
 /// prompts in-app, downloads the platform asset and installs it —
@@ -144,14 +166,19 @@ class UpdateService {
   /// relaunches the new version; on Android the system installer takes over.
   /// Falls back to opening the release page if anything platform-specific
   /// goes wrong.
+  /// [silent] suppresses the open-the-release-page fallback — used by the
+  /// background auto-installer, which must never pop a browser at the user.
   Future<void> downloadAndInstall(
     UpdateInfo info, {
     void Function(double progress)? onProgress,
+    bool silent = false,
   }) async {
     final url = info.assetUrl;
     if (url == null) {
-      await launchUrl(Uri.parse(info.releaseUrl),
-          mode: LaunchMode.externalApplication);
+      if (!silent) {
+        await launchUrl(Uri.parse(info.releaseUrl),
+            mode: LaunchMode.externalApplication);
+      }
       return;
     }
     try {
@@ -162,14 +189,16 @@ class UpdateService {
         await _installMacOS(bytes);
       } else if (Platform.isWindows) {
         await _installWindows(bytes);
-      } else {
+      } else if (!silent) {
         await launchUrl(Uri.parse(info.releaseUrl),
             mode: LaunchMode.externalApplication);
       }
     } on Exception {
       // Never leave the user stranded — the release page always works.
-      await launchUrl(Uri.parse(info.releaseUrl),
-          mode: LaunchMode.externalApplication);
+      if (!silent) {
+        await launchUrl(Uri.parse(info.releaseUrl),
+            mode: LaunchMode.externalApplication);
+      }
       rethrow;
     }
   }

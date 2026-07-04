@@ -16,6 +16,8 @@ const kLocalOnlyKeys = <String>{
   'gdrive_email',
   'sync_auto',
   'last_update_check',
+  'pref_quote_notifs',
+  'pref_auto_update',
   // Legacy (pre-Drive) keys — excluded defensively.
   'supabase_url',
   'supabase_anon_key',
@@ -53,10 +55,24 @@ class VaultData {
       );
 }
 
+/// The vault on Drive was written by a NEWER app than this one — the caller
+/// must not overwrite it (that would destroy data this version can't read).
+class VaultTooNewException implements Exception {
+  final int found;
+  VaultTooNewException(this.found);
+  @override
+  String toString() =>
+      'This device runs an older app version — update it to keep syncing.';
+}
+
 /// Vault format v2: per-record rows with `updatedAtMs` + tombstones, gzipped
 /// JSON. Instants are epoch-ms; day-keyed fields (entry dates, challenge
 /// start/end) travel as 'yyyy-MM-dd' strings so a completion logged on
 /// Tuesday stays on Tuesday regardless of the receiving device's timezone.
+///
+/// Decoding is defensive: one corrupt record is skipped, not fatal — a new
+/// device signing in against a vault containing garbage rows still gets
+/// everything readable instead of a broken sync.
 abstract final class VaultCodec {
   static const version = 2;
 
@@ -97,13 +113,23 @@ abstract final class VaultCodec {
     final m =
         jsonDecode(utf8.decode(gzip.decode(bytes))) as Map<String, dynamic>;
     final v = (m['v'] as num?)?.toInt() ?? 0;
-    if (v != version) {
+    if (v > version) throw VaultTooNewException(v);
+    if (v < version) {
       throw FormatException('Unsupported vault version $v (expected $version)');
     }
-    List<T> list<T>(String key, T Function(Map<String, dynamic>) f) =>
-        ((m[key] as List?) ?? const [])
-            .map((e) => f(e as Map<String, dynamic>))
-            .toList();
+    // Tolerant per-record decode: a malformed row is dropped, the rest of
+    // the vault survives. LWW means a dropped row is re-filled from
+    // whichever device still holds a good copy on its next push.
+    List<T> list<T>(String key, T Function(Map<String, dynamic>) f) {
+      final out = <T>[];
+      for (final e in (m[key] as List?) ?? const []) {
+        try {
+          out.add(f(e as Map<String, dynamic>));
+        } catch (_) {/* skip garbage record */}
+      }
+      return out;
+    }
+
     return VaultData(
       habits: list('habits', habitFrom),
       entries: list('entries', entryFrom),

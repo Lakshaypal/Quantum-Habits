@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -7,6 +9,7 @@ import '../../../core/widgets/aurora_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/neo_block.dart';
 import '../../habits/application/habit_providers.dart' show databaseProvider;
+import '../../quotes/quotes.dart';
 import '../../updates/update_prompt.dart';
 import '../../updates/update_service.dart';
 import '../application/oauth_defaults.dart';
@@ -93,6 +96,8 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
                 ..._buildConnect(t, engine)
               else
                 ..._buildConnected(t, status, engine),
+              const SizedBox(height: Insets.xl),
+              ..._buildQuotes(t),
               const SizedBox(height: Insets.xl),
               ..._buildUpdates(t),
               if (_localError != null) ...[
@@ -250,10 +255,96 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
         ),
       ];
 
+  List<Widget> _buildQuotes(TextTheme t) {
+    final cats = ref.watch(quoteCategoriesProvider);
+    final notifs = ref.watch(quoteNotificationsProvider);
+    return [
+      Text('DAILY QUOTES', style: t.labelSmall),
+      const SizedBox(height: 6),
+      Text(
+        'Choose whose wisdom greets you. More voices selected = a longer '
+        'run of days before any quote repeats (all five ≈ six months).',
+        style: t.bodySmall,
+      ),
+      const SizedBox(height: Insets.md),
+      Wrap(
+        spacing: Insets.sm,
+        runSpacing: Insets.sm,
+        children: [
+          for (final cat in QuoteCategory.values)
+            GestureDetector(
+              onTap: () =>
+                  ref.read(quoteCategoriesProvider.notifier).toggle(cat),
+              child: AnimatedContainer(
+                duration: Motion.fast,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: Insets.md, vertical: Insets.sm),
+                decoration: BoxDecoration(
+                  color: cats.contains(cat)
+                      ? AppColors.electricBlue.withValues(alpha: 0.18)
+                      : AppColors.graphiteHi,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                      color: cats.contains(cat)
+                          ? AppColors.electricBlue
+                          : AppColors.border),
+                ),
+                child: Text(
+                  cat.label,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                    color: cats.contains(cat)
+                        ? AppColors.frostWhite
+                        : AppColors.muted,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+      const SizedBox(height: Insets.md),
+      GlassCard(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Insets.lg, vertical: Insets.sm),
+        child: Row(children: [
+          Expanded(
+            child: Text('Notify me at 5 AM & 5 PM', style: t.bodyMedium),
+          ),
+          Switch(
+            value: notifs,
+            onChanged: (v) =>
+                ref.read(quoteNotificationsProvider.notifier).set(v),
+          ),
+        ]),
+      ),
+    ];
+  }
+
   List<Widget> _buildUpdates(TextTheme t) {
     final check = _updateCheck;
+    final autoUpdate = ref.watch(autoUpdateProvider);
     return [
       Text('APP UPDATES', style: t.labelSmall),
+      const SizedBox(height: Insets.sm),
+      GlassCard(
+        padding: const EdgeInsets.symmetric(
+            horizontal: Insets.lg, vertical: Insets.sm),
+        child: Row(children: [
+          Expanded(
+            child: Text(
+              Platform.isAndroid
+                  ? 'Notify me about new versions'
+                  : 'Update automatically in the background',
+              style: t.bodyMedium,
+            ),
+          ),
+          Switch(
+            value: autoUpdate,
+            onChanged: (v) => ref.read(autoUpdateProvider.notifier).set(v),
+          ),
+        ]),
+      ),
       const SizedBox(height: Insets.sm),
       GlassCard(
         padding: const EdgeInsets.all(Insets.lg),
