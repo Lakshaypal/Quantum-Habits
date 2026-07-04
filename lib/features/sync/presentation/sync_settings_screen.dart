@@ -7,6 +7,7 @@ import '../../../core/widgets/aurora_background.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../../../core/widgets/neo_block.dart';
 import '../../habits/application/habit_providers.dart' show databaseProvider;
+import '../../updates/update_prompt.dart';
 import '../../updates/update_service.dart';
 import '../application/oauth_defaults.dart';
 import '../application/sync_engine.dart';
@@ -316,9 +317,8 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
                     foreground: Colors.white,
                     padding: const EdgeInsets.symmetric(
                         horizontal: Insets.lg, vertical: Insets.sm),
-                    onTap: () =>
-                        ref.read(updateServiceProvider).download(check.update),
-                    child: const Text('Download & install'),
+                    onTap: () => runUpdateFlow(context, ref, check.update),
+                    child: const Text('Update now'),
                   ),
               ],
             ),

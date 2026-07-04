@@ -14,6 +14,7 @@ import '../../journal/application/journal_providers.dart';
 import '../../journal/presentation/journal_editor_sheet.dart';
 import '../../journal/presentation/journal_screen.dart';
 import '../../research/presentation/research_screen.dart';
+import '../../updates/update_prompt.dart';
 
 class RootShell extends ConsumerStatefulWidget {
   const RootShell({super.key});
@@ -67,9 +68,16 @@ class _RootShellState extends ConsumerState<RootShell> {
       body: AuroraBackground(
         child: SafeArea(
           bottom: false,
-          child: IndexedStack(
-            index: _index,
-            children: const [HomeScreen(), ChallengesScreen(), JournalScreen(), ResearchScreen()],
+          child: Column(
+            children: [
+              const UpdateBanner(),
+              Expanded(
+                child: IndexedStack(
+                  index: _index,
+                  children: const [HomeScreen(), ChallengesScreen(), JournalScreen(), ResearchScreen()],
+                ),
+              ),
+            ],
           ),
         ),
       ),

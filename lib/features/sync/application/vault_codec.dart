@@ -15,6 +15,7 @@ const kLocalOnlyKeys = <String>{
   'gdrive_client_id',
   'gdrive_email',
   'sync_auto',
+  'last_update_check',
   // Legacy (pre-Drive) keys — excluded defensively.
   'supabase_url',
   'supabase_anon_key',
