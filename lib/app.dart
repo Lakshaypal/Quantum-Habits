@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/notifications/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/habits/application/habit_providers.dart'
-    show databaseProvider;
+    show activeHabitsProvider, databaseProvider;
 import 'features/journal/application/journal_providers.dart';
 import 'features/quotes/quotes.dart';
 import 'features/shell/presentation/root_shell.dart';
@@ -43,13 +43,27 @@ class _QuantumHabitsAppState extends ConsumerState<QuantumHabitsApp> {
       }
     };
 
-    // Quote notifications: top up the rolling 14-day schedule on launch and
-    // resume, and reschedule whenever the categories or the toggle change.
-    Future.delayed(const Duration(seconds: 2), _rescheduleQuotes);
+    // Notifications: top up the rolling 14-day quote + habit-reminder
+    // schedules on launch and resume, and reschedule when their inputs change.
+    Future.delayed(const Duration(seconds: 2), () {
+      _rescheduleQuotes();
+      _rescheduleReminders();
+    });
     ref.listenManual(quoteCategoriesProvider, (_, _) => _rescheduleQuotes());
     ref.listenManual(quoteNotificationsProvider, (_, _) => _rescheduleQuotes());
+    // Habit add/edit/archive/delete (and synced reminder-time changes) all
+    // re-emit here, so reminders stay in step with the roster.
+    ref.listenManual(activeHabitsProvider, (_, next) {
+      final habits = next.asData?.value;
+      if (habits != null) {
+        unawaited(NotificationService.scheduleHabitReminders(habits));
+      }
+    });
     _lifecycle = AppLifecycleListener(
-      onResume: _rescheduleQuotes,
+      onResume: () {
+        _rescheduleQuotes();
+        _rescheduleReminders();
+      },
       // "Updates itself without asking": the silent install runs the moment
       // the user switches away, so the restart never interrupts them.
       onInactive: _maybeAutoInstall,
@@ -78,6 +92,13 @@ class _QuantumHabitsAppState extends ConsumerState<QuantumHabitsApp> {
   void dispose() {
     _lifecycle?.dispose();
     super.dispose();
+  }
+
+  void _rescheduleReminders() {
+    final habits = ref.read(activeHabitsProvider).asData?.value;
+    if (habits != null) {
+      unawaited(NotificationService.scheduleHabitReminders(habits));
+    }
   }
 
   void _rescheduleQuotes() {

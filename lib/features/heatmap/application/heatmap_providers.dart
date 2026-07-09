@@ -1,9 +1,12 @@
+import 'dart:math' as math;
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/db/database.dart';
 import '../../../core/util/current_day.dart';
 import '../../../core/util/day.dart';
 import '../../habits/application/habit_providers.dart';
+import '../../habits/data/habit_schedule.dart';
 
 /// Aggregate completion for a single day, resolved to a heatmap level 0–4.
 class DayStat {
@@ -35,8 +38,19 @@ bool habitAliveOn(Habit h, DateTime day, DateTime today) {
   return true;
 }
 
-/// Map of day → [DayStat]. Each day is scored against the habits that
-/// actually existed on that day — history is immutable.
+/// Habits that were *due* on [day] — alive and, per their schedule, expected
+/// that day (daily always; weekday habits only on their weekdays; times-per-
+/// week habits never count as a per-day obligation). Missing a due habit is a
+/// genuine miss; missing a not-due one is not.
+int expectedCountOn(List<Habit> habits, DateTime day, DateTime today) => habits
+    .where((h) =>
+        habitAliveOn(h, day, today) && scheduleOf(h).countsTowardMissOn(day))
+    .length;
+
+/// Map of day → [DayStat]. Each day is scored against the habits that were
+/// due that day (history is immutable). The denominator is `max(due, done)`,
+/// so extra effort on a rest day still lights the square green and a
+/// weekday-only habit never dims the weekend.
 final dayStatsProvider = Provider<Map<DateTime, DayStat>>((ref) {
   final habits = ref.watch(allHabitsAnyProvider).asData?.value ?? const [];
   final entries = ref.watch(allEntriesProvider).asData?.value ?? const [];
@@ -53,16 +67,17 @@ final dayStatsProvider = Provider<Map<DateTime, DayStat>>((ref) {
     completedByDay[k] = (completedByDay[k] ?? 0) + 1;
   }
 
-  final aliveCountCache = <DateTime, int>{};
-  int aliveOn(DateTime day) => aliveCountCache.putIfAbsent(
-      day,
-      () =>
-          habits.where((h) => habitAliveOn(h, day, today)).length);
+  final expectedCache = <DateTime, int>{};
+  int expectedOn(DateTime day) => expectedCache.putIfAbsent(
+      day, () => expectedCountOn(habits, day, today));
 
   return {
     for (final entry in completedByDay.entries)
-      entry.key: DayStat(entry.key, entry.value, aliveOn(entry.key),
-          levelFor(entry.value, aliveOn(entry.key))),
+      entry.key: () {
+        final done = entry.value;
+        final denom = math.max(expectedOn(entry.key), done);
+        return DayStat(entry.key, done, denom, levelFor(done, denom));
+      }(),
   };
 });
 
@@ -73,10 +88,14 @@ class StreakStats {
   const StreakStats(this.current, this.longest, this.monthlyConsistency);
 }
 
-/// Subtle streak math. A "successful day" is any day with at least one
-/// completion (level >= 1) — supportive, not all-or-nothing.
+/// Subtle, schedule-aware streak math. A "successful day" is any day with at
+/// least one completion (level >= 1). Rest days — days on which nothing was
+/// due — neither break nor extend a streak, so a Mon–Fri habit keeps its
+/// streak across the weekend. A due day with no completion is the only thing
+/// that breaks it.
 final streakStatsProvider = Provider<StreakStats>((ref) {
   final stats = ref.watch(dayStatsProvider);
+  final habits = ref.watch(allHabitsAnyProvider).asData?.value ?? const [];
   final today = ref.watch(currentDayProvider);
   final success = <DateTime>{
     for (final s in stats.values)
@@ -84,25 +103,45 @@ final streakStatsProvider = Provider<StreakStats>((ref) {
   };
   if (success.isEmpty) return const StreakStats(0, 0, 0);
 
-  final sorted = success.toList()..sort();
+  final expectedCache = <DateTime, int>{};
+  bool isRest(DateTime d) => expectedCache.putIfAbsent(
+          d, () => expectedCountOn(habits, d, today)) ==
+      0;
+
+  // Longest: sweep every day from the first success to today so rest days
+  // bridge instead of reset.
+  final earliest = success.reduce((a, b) => a.isBefore(b) ? a : b);
   int longest = 0, run = 0;
-  DateTime? prev;
-  for (final d in sorted) {
-    run = (prev != null && daysBetween(prev, d) == 1) ? run + 1 : 1;
-    if (run > longest) longest = run;
-    prev = d;
+  for (var d = earliest; !d.isAfter(today); d = addDays(d, 1)) {
+    if (success.contains(d)) {
+      run++;
+      if (run > longest) longest = run;
+    } else if (!isRest(d)) {
+      run = 0;
+    }
   }
 
-  var cursor = success.contains(today) ? today : addDays(today, -1);
+  // Current: walk back from today, skipping rest days. Today not-yet-done
+  // doesn't break the streak; a past due-but-empty day does.
   int current = 0;
-  while (success.contains(cursor)) {
-    current++;
+  var cursor = today;
+  var guard = 0;
+  while (guard++ < 3000 && !cursor.isBefore(earliest)) {
+    if (success.contains(cursor)) {
+      current++;
+    } else if (!isRest(cursor) && cursor != today) {
+      break;
+    }
     cursor = addDays(cursor, -1);
   }
 
-  int last30 = 0;
+  // 30-day consistency: honored due-days ÷ due-days (rest days excluded).
+  int due = 0, hit = 0;
   for (int i = 0; i < 30; i++) {
-    if (success.contains(addDays(today, -i))) last30++;
+    final d = addDays(today, -i);
+    if (isRest(d)) continue;
+    due++;
+    if (success.contains(d)) hit++;
   }
-  return StreakStats(current, longest, last30 / 30);
+  return StreakStats(current, longest, due == 0 ? 0 : hit / due);
 });

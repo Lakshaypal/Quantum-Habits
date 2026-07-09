@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/db/database.dart';
 import '../../../core/util/current_day.dart';
 import '../../../core/util/day.dart';
+import '../data/habit_schedule.dart';
 import '../data/habit_type.dart';
 
 const _uuid = Uuid();
@@ -59,6 +60,8 @@ class HabitService {
     String? category,
     double? target,
     String? unit,
+    HabitSchedule schedule = HabitSchedule.everyday,
+    int? reminderMinutes,
   }) {
     return _db.insertHabit(HabitsCompanion.insert(
       id: id ?? _uuid.v4(),
@@ -70,6 +73,9 @@ class HabitService {
       targetValue: Value(target),
       unit: Value(unit),
       createdAt: DateTime.now(),
+      scheduleKind: Value(schedule.kind.index),
+      scheduleMask: Value(schedule.mask),
+      reminderMinutes: Value(reminderMinutes),
     ));
   }
 
@@ -83,6 +89,8 @@ class HabitService {
     String? category,
     double? target,
     String? unit,
+    HabitSchedule schedule = HabitSchedule.everyday,
+    int? reminderMinutes,
   }) {
     return _db.updateHabitRow(existing.copyWith(
       name: name.trim(),
@@ -92,6 +100,9 @@ class HabitService {
       category: Value(category),
       targetValue: Value(target),
       unit: Value(unit),
+      scheduleKind: schedule.kind.index,
+      scheduleMask: schedule.mask,
+      reminderMinutes: Value(reminderMinutes),
     ));
   }
 

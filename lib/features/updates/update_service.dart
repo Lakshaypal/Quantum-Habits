@@ -252,11 +252,21 @@ class UpdateService {
     if (!bundle.endsWith('.app')) {
       throw Exception('Not running from an app bundle.');
     }
+    // Stage beside the current bundle, verify, THEN swap — a failed copy can
+    // never leave the user with no app. Strip the quarantine flag so Gatekeeper
+    // doesn't re-prompt on the freshly written copy.
     final script = File('${tmp.path}/install.sh');
     await script.writeAsString('''#!/bin/bash
 sleep 1.5
+STAGE="$bundle.new"
+rm -rf "\$STAGE"
+if ! ditto "${newApp.path}" "\$STAGE"; then
+  open "$bundle"
+  exit 1
+fi
 rm -rf "$bundle"
-ditto "${newApp.path}" "$bundle"
+mv "\$STAGE" "$bundle"
+xattr -dr com.apple.quarantine "$bundle" 2>/dev/null
 open "$bundle"
 ''');
     await Process.run('chmod', ['+x', script.path]);

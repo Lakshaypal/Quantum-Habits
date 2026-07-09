@@ -4,7 +4,9 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../features/habits/data/habit_schedule.dart';
 import '../../features/quotes/quotes.dart';
+import '../db/database.dart';
 import '../util/day.dart';
 
 /// Local notifications: the daily quote at 5 AM and 5 PM, plus update
@@ -14,9 +16,12 @@ class NotificationService {
   static final _plugin = FlutterLocalNotificationsPlugin();
   static bool _ready = false;
 
-  /// Ids: 5xx0 = morning of day-offset x, 5xx1 = evening. Update alert = 9001.
+  /// Id ranges: quotes 5000–5279, update alert 9001, habit reminders
+  /// 20000–29999. Each range is cleared independently before rescheduling.
   static const _updateId = 9001;
   static const _daysAhead = 14;
+  static const _habitBase = 20000;
+  static const _habitRange = 10000;
 
   static Future<bool> init() async {
     if (_ready) return true;
@@ -99,6 +104,61 @@ class NotificationService {
             body: '“${quote.text}” — ${quote.author}',
             scheduledDate: at,
             notificationDetails: _details,
+            androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          );
+        }
+      }
+    } catch (_) {/* platform quirks must never crash the app */}
+  }
+
+  static NotificationDetails get _reminderDetails => const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'habit_reminders',
+          'Habit reminders',
+          channelDescription: 'Per-habit reminders at the time you chose',
+          importance: Importance.high,
+        ),
+        macOS: DarwinNotificationDetails(),
+        iOS: DarwinNotificationDetails(),
+        windows: WindowsNotificationDetails(),
+      );
+
+  /// (Re)schedules the next [_daysAhead] days of per-habit reminders. Each
+  /// habit with a reminder time fires only on its scheduled days. Call on
+  /// launch/resume and whenever habits change.
+  static Future<void> scheduleHabitReminders(List<Habit> habits) async {
+    if (!await init()) return;
+    try {
+      final pending = await _plugin.pendingNotificationRequests();
+      for (final p in pending) {
+        if (p.id >= _habitBase && p.id < _habitBase + _habitRange) {
+          await _plugin.cancel(id: p.id);
+        }
+      }
+      final now = DateTime.now();
+      final withReminders = habits
+          .where((h) =>
+              h.deletedAt == null &&
+              !h.archived &&
+              h.reminderMinutes != null)
+          .toList();
+      for (var idx = 0; idx < withReminders.length && idx < 700; idx++) {
+        final h = withReminders[idx];
+        final sched = scheduleOf(h);
+        final mins = h.reminderMinutes!;
+        for (var d = 0; d < _daysAhead; d++) {
+          final day = addDays(dayKey(now), d);
+          if (!sched.isDueOn(day)) continue;
+          final when =
+              DateTime(day.year, day.month, day.day, mins ~/ 60, mins % 60);
+          if (!when.isAfter(now)) continue;
+          final at = tz.TZDateTime.from(when.toUtc(), tz.UTC);
+          await _plugin.zonedSchedule(
+            id: _habitBase + idx * _daysAhead + d,
+            title: h.name,
+            body: 'Time for ${h.name} — tap to log it.',
+            scheduledDate: at,
+            notificationDetails: _reminderDetails,
             androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           );
         }

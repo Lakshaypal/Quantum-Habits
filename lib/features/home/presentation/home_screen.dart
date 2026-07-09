@@ -11,6 +11,8 @@ import '../../../core/widgets/glass_card.dart';
 import '../../analytics/presentation/analytics_screen.dart';
 import '../../sync/presentation/sync_settings_screen.dart';
 import '../../habits/application/habit_providers.dart';
+import '../../../core/util/current_day.dart';
+import '../../habits/data/habit_schedule.dart';
 import '../../habits/data/habit_type.dart';
 import '../../habits/presentation/habit_editor_sheet.dart';
 import '../../habits/presentation/habit_tile.dart';
@@ -41,6 +43,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final archived = ref.watch(archivedHabitsProvider).asData?.value ?? const <Habit>[];
     final todayEntries = ref.watch(todayEntriesProvider).asData?.value ?? const [];
     final entryByHabit = {for (final e in todayEntries) e.habitId: e};
+    final today = ref.watch(currentDayProvider);
+    // Only what's on today's plan (plus anything already logged today), so a
+    // weekday-only or 3×/week habit doesn't clutter a rest day.
+    final dueHabits = habits
+        .where((h) =>
+            scheduleOf(h).isDueOn(today) || entryByHabit.containsKey(h.id))
+        .toList();
     final streak = ref.watch(streakStatsProvider);
     final quote = ref.watch(quoteOfTheDayProvider);
     final palette = ref.watch(heatmapPaletteProvider);
@@ -90,7 +99,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     const SizedBox(height: Insets.lg),
                     _StatsRow(streak: streak),
                     const SizedBox(height: Insets.sm),
-                    _SectionLabel(habits.isEmpty ? 'Today' : 'Today · ${habits.length}'),
+                    _SectionLabel(dueHabits.isEmpty ? 'Today' : 'Today · ${dueHabits.length}'),
                     if (habitsAsync.isLoading && habits.isEmpty)
                       const Padding(
                         padding: EdgeInsets.symmetric(vertical: Insets.xl),
@@ -98,8 +107,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       )
                     else if (habits.isEmpty)
                       _EmptyToday(onAdd: () => showHabitEditor(context))
+                    else if (dueHabits.isEmpty)
+                      const _RestDay()
                     else
-                      ...habits.map((h) => HabitTile(habit: h, entry: entryByHabit[h.id])),
+                      ...dueHabits.map((h) => HabitTile(habit: h, entry: entryByHabit[h.id])),
                     if (archived.isNotEmpty) ...[
                       const SizedBox(height: Insets.md),
                       _ArchivedSection(
@@ -461,6 +472,27 @@ class _SectionLabel extends StatelessWidget {
       padding: const EdgeInsets.only(top: Insets.lg, bottom: Insets.md),
       child: Text(text.toUpperCase(),
           style: Theme.of(context).textTheme.labelSmall?.copyWith(letterSpacing: 1.6)),
+    );
+  }
+}
+
+class _RestDay extends StatelessWidget {
+  const _RestDay();
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return GlassCard(
+      padding: const EdgeInsets.symmetric(vertical: Insets.xl, horizontal: Insets.lg),
+      child: Column(
+        children: [
+          const Icon(Icons.spa_outlined, color: AppColors.muted, size: 24),
+          const SizedBox(height: Insets.md),
+          Text('Nothing scheduled today', style: t.titleMedium),
+          const SizedBox(height: 4),
+          Text('A rest day is part of the plan.',
+              style: t.bodySmall, textAlign: TextAlign.center),
+        ],
+      ),
     );
   }
 }

@@ -7,6 +7,7 @@ import '../../../core/db/database.dart';
 import '../../../core/util/current_day.dart';
 import '../../../core/util/day.dart';
 import '../../habits/application/habit_providers.dart';
+import '../../habits/data/habit_schedule.dart';
 import '../data/challenge_model.dart';
 
 const _uuid = Uuid();
@@ -197,6 +198,7 @@ final challengeProgressProvider = Provider.family<ChallengeProgress, Challenge>(
   final allIds = myLinks.map((l) => l.habitId).toSet();
   final unscored = allIds.isEmpty;
 
+  final scheduleById = {for (final h in habits) h.id: scheduleOf(h)};
   final completedByDay = <DateTime, Set<String>>{};
   for (final e in entries) {
     if (e.completed) (completedByDay[dayKey(e.date)] ??= {}).add(e.habitId);
@@ -204,7 +206,13 @@ final challengeProgressProvider = Provider.family<ChallengeProgress, Challenge>(
 
   bool dayPassed(DateTime d) {
     final done = completedByDay[d] ?? const <String>{};
-    if (mandatoryIds.isNotEmpty) return mandatoryIds.every(done.contains);
+    if (mandatoryIds.isNotEmpty) {
+      // A mandatory habit only gates a day it's scheduled on, so a
+      // weekday-only habit never fails the weekend.
+      return mandatoryIds
+          .where((id) => scheduleById[id]?.countsTowardMissOn(d) ?? true)
+          .every(done.contains);
+    }
     return allIds.any(done.contains);
   }
 

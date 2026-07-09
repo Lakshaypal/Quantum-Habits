@@ -24,6 +24,9 @@ Habit habit(String id,
       sortOrder: 0,
       deletedAt: deletedAt,
       updatedAtMs: up,
+      scheduleKind: 0,
+      scheduleMask: 0,
+      reminderMinutes: null,
     );
 
 HabitEntry entry(String id, String habitId, DateTime day,

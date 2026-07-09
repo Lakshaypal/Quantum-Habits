@@ -24,6 +24,12 @@ class Habits extends Table {
   // historical heatmap contributions are preserved. Doubles as the tombstone.
   DateTimeColumn get deletedAt => dateTime().nullable()();
   IntColumn get updatedAtMs => integer().withDefault(const Constant(0))();
+  // Cadence (see HabitSchedule): 0 daily · 1 specific weekdays · 2 N-per-week.
+  IntColumn get scheduleKind => integer().withDefault(const Constant(0))();
+  // weekdays → weekday bitmask; N-per-week → target count.
+  IntColumn get scheduleMask => integer().withDefault(const Constant(0))();
+  // Minutes since local midnight for a daily reminder; null = no reminder.
+  IntColumn get reminderMinutes => integer().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};
@@ -121,7 +127,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   static int _now() => DateTime.now().millisecondsSinceEpoch;
 
@@ -182,6 +188,11 @@ class AppDatabase extends _$AppDatabase {
                 'UPDATE challenges SET updated_at_ms = created_at * 1000');
             await customStatement(
                 'UPDATE journal_entries SET updated_at_ms = updated_at * 1000');
+          }
+          if (from < 6) {
+            await _addColumnSafe(m, habits, habits.scheduleKind);
+            await _addColumnSafe(m, habits, habits.scheduleMask);
+            await _addColumnSafe(m, habits, habits.reminderMinutes);
           }
         },
         beforeOpen: (details) async {

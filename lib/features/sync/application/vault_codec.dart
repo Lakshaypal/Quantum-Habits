@@ -154,6 +154,7 @@ abstract final class VaultCodec {
         'sort': h.sortOrder,
         'del': h.deletedAt == null ? null : _ms(h.deletedAt!),
         'up': h.updatedAtMs,
+        'sk': h.scheduleKind, 'sm': h.scheduleMask, 'rem': h.reminderMinutes,
       };
   static Habit habitFrom(Map<String, dynamic> m) => Habit(
         id: m['id'] as String, name: m['name'] as String, type: m['type'] as int,
@@ -163,6 +164,10 @@ abstract final class VaultCodec {
         archived: m['arch'] as bool, sortOrder: m['sort'] as int,
         deletedAt: m['del'] == null ? null : _dt(m['del']),
         updatedAtMs: (m['up'] as num?)?.toInt() ?? 0,
+        // Fields added in schema v6 — older vaults omit them.
+        scheduleKind: (m['sk'] as num?)?.toInt() ?? 0,
+        scheduleMask: (m['sm'] as num?)?.toInt() ?? 0,
+        reminderMinutes: (m['rem'] as num?)?.toInt(),
       );
 
   // ---- HabitEntry ----

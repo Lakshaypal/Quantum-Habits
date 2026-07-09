@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/neo_block.dart';
 import '../application/habit_providers.dart';
+import '../data/habit_schedule.dart';
 import '../data/habit_type.dart';
 
 /// Pass [existing] to edit a habit in place — same identity, entries and
@@ -36,8 +37,20 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
   int _iconIndex = 0;
   bool _error = false;
   bool _busy = false;
+  ScheduleKind _scheduleKind = ScheduleKind.daily;
+  int _weekdayMask = 0x1F; // Mon–Fri by default
+  int _timesPerWeek = 3;
+  int? _reminderMinutes;
 
   bool get _isEdit => widget.existing != null;
+
+  HabitSchedule get _schedule => switch (_scheduleKind) {
+        ScheduleKind.daily => HabitSchedule.everyday,
+        ScheduleKind.weekdays => HabitSchedule(
+            ScheduleKind.weekdays, _weekdayMask == 0 ? 0x7F : _weekdayMask),
+        ScheduleKind.timesPerWeek =>
+          HabitSchedule(ScheduleKind.timesPerWeek, _timesPerWeek.clamp(1, 7)),
+      };
 
   @override
   void initState() {
@@ -59,6 +72,14 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
     final iconIdx =
         kHabitIcons.indexWhere((i) => i.codePoint == h.iconCodePoint);
     if (iconIdx >= 0) _iconIndex = iconIdx;
+    final sched = scheduleOf(h);
+    _scheduleKind = sched.kind;
+    if (sched.kind == ScheduleKind.weekdays) {
+      _weekdayMask = sched.mask == 0 ? 0x7F : sched.mask;
+    } else if (sched.kind == ScheduleKind.timesPerWeek) {
+      _timesPerWeek = sched.timesTarget;
+    }
+    _reminderMinutes = h.reminderMinutes;
   }
 
   @override
@@ -97,6 +118,8 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
           category: category,
           target: target,
           unit: unit,
+          schedule: _schedule,
+          reminderMinutes: _reminderMinutes,
         );
       } else {
         await service.addHabit(
@@ -107,6 +130,8 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
           category: category,
           target: target,
           unit: unit,
+          schedule: _schedule,
+          reminderMinutes: _reminderMinutes,
         );
       }
       if (mounted) Navigator.of(context).pop();
@@ -255,6 +280,106 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
               style: t.bodyLarge,
               decoration: _dec('Category (optional)', hint: 'Fitness, Research, Mind…'),
             ),
+            const SizedBox(height: Insets.lg),
+            Text('SCHEDULE', style: t.labelSmall),
+            const SizedBox(height: Insets.sm),
+            Wrap(
+              spacing: Insets.sm,
+              runSpacing: Insets.sm,
+              children: [
+                _Choice(
+                  label: 'Every day',
+                  icon: Icons.event_repeat,
+                  selected: _scheduleKind == ScheduleKind.daily,
+                  accent: accent,
+                  onTap: () => setState(() => _scheduleKind = ScheduleKind.daily),
+                ),
+                _Choice(
+                  label: 'Specific days',
+                  icon: Icons.calendar_view_week,
+                  selected: _scheduleKind == ScheduleKind.weekdays,
+                  accent: accent,
+                  onTap: () => setState(() => _scheduleKind = ScheduleKind.weekdays),
+                ),
+                _Choice(
+                  label: 'Times / week',
+                  icon: Icons.repeat,
+                  selected: _scheduleKind == ScheduleKind.timesPerWeek,
+                  accent: accent,
+                  onTap: () => setState(() => _scheduleKind = ScheduleKind.timesPerWeek),
+                ),
+              ],
+            ),
+            if (_scheduleKind == ScheduleKind.weekdays) ...[
+              const SizedBox(height: Insets.md),
+              _WeekdayPicker(
+                mask: _weekdayMask,
+                accent: accent,
+                onChanged: (m) => setState(() => _weekdayMask = m),
+              ),
+            ],
+            if (_scheduleKind == ScheduleKind.timesPerWeek) ...[
+              const SizedBox(height: Insets.md),
+              Row(children: [
+                Text('$_timesPerWeek× per week', style: t.bodyMedium),
+                const Spacer(),
+                _Stepper(
+                  onMinus: () => setState(
+                      () => _timesPerWeek = (_timesPerWeek - 1).clamp(1, 7)),
+                  onPlus: () => setState(
+                      () => _timesPerWeek = (_timesPerWeek + 1).clamp(1, 7)),
+                ),
+              ]),
+            ],
+            const SizedBox(height: Insets.lg),
+            Text('REMINDER', style: t.labelSmall),
+            const SizedBox(height: Insets.sm),
+            Row(children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: () async {
+                    final initial = _reminderMinutes ?? 8 * 60;
+                    final picked = await showTimePicker(
+                      context: context,
+                      initialTime: TimeOfDay(
+                          hour: initial ~/ 60, minute: initial % 60),
+                    );
+                    if (picked != null) {
+                      setState(() =>
+                          _reminderMinutes = picked.hour * 60 + picked.minute);
+                    }
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: Insets.lg, vertical: Insets.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.graphiteHi,
+                      borderRadius: BorderRadius.circular(Radii.sm),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(children: [
+                      Icon(Icons.notifications_none,
+                          size: 18,
+                          color: _reminderMinutes == null
+                              ? AppColors.muted
+                              : accent),
+                      const SizedBox(width: Insets.md),
+                      Text(
+                        _reminderMinutes == null
+                            ? 'No reminder'
+                            : 'Remind at ${_fmtTime(_reminderMinutes!)}',
+                        style: t.bodyMedium,
+                      ),
+                    ]),
+                  ),
+                ),
+              ),
+              if (_reminderMinutes != null)
+                IconButton(
+                  onPressed: () => setState(() => _reminderMinutes = null),
+                  icon: const Icon(Icons.close, size: 18, color: AppColors.muted),
+                ),
+            ]),
             const SizedBox(height: Insets.xl),
             Align(
               alignment: Alignment.centerRight,
@@ -292,6 +417,88 @@ class _HabitEditorSheetState extends ConsumerState<HabitEditorSheet> {
           borderSide: const BorderSide(color: AppColors.electricBlue),
         ),
       );
+}
+
+String _fmtTime(int minutes) {
+  final h = minutes ~/ 60, m = minutes % 60;
+  final period = h < 12 ? 'AM' : 'PM';
+  final h12 = h % 12 == 0 ? 12 : h % 12;
+  return '$h12:${m.toString().padLeft(2, '0')} $period';
+}
+
+class _WeekdayPicker extends StatelessWidget {
+  final int mask;
+  final Color accent;
+  final ValueChanged<int> onChanged;
+  const _WeekdayPicker(
+      {required this.mask, required this.accent, required this.onChanged});
+
+  static const _labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        for (var i = 0; i < 7; i++)
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: GestureDetector(
+                onTap: () => onChanged(mask ^ (1 << i)),
+                child: Container(
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: (mask & (1 << i)) != 0
+                        ? accent.withValues(alpha: 0.2)
+                        : AppColors.graphiteHi,
+                    borderRadius: BorderRadius.circular(Radii.sm),
+                    border: Border.all(
+                        color: (mask & (1 << i)) != 0 ? accent : AppColors.border),
+                  ),
+                  child: Text(_labels[i],
+                      style: TextStyle(
+                          color: (mask & (1 << i)) != 0
+                              ? AppColors.frostWhite
+                              : AppColors.muted,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13)),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _Stepper extends StatelessWidget {
+  final VoidCallback onMinus;
+  final VoidCallback onPlus;
+  const _Stepper({required this.onMinus, required this.onPlus});
+
+  @override
+  Widget build(BuildContext context) {
+    Widget btn(IconData icon, VoidCallback onTap) => GestureDetector(
+          onTap: onTap,
+          child: Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.graphiteHi,
+              borderRadius: BorderRadius.circular(Radii.sm),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Icon(icon, size: 16, color: AppColors.frostWhite),
+          ),
+        );
+    return Row(children: [
+      btn(Icons.remove, onMinus),
+      const SizedBox(width: Insets.sm),
+      btn(Icons.add, onPlus),
+    ]);
+  }
 }
 
 class _Choice extends StatelessWidget {
