@@ -6,19 +6,22 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/neo_block.dart';
 import '../application/journal_providers.dart';
 import '../data/journal_kind.dart';
+import '../data/journal_mood.dart';
 
-Future<void> showJournalEditor(BuildContext context, {DecryptedEntry? existing}) {
+Future<void> showJournalEditor(BuildContext context,
+    {DecryptedEntry? existing, String? promptText}) {
   return showModalBottomSheet(
     context: context,
     backgroundColor: Colors.transparent,
     isScrollControlled: true,
-    builder: (_) => JournalEditorSheet(existing: existing),
+    builder: (_) => JournalEditorSheet(existing: existing, promptText: promptText),
   );
 }
 
 class JournalEditorSheet extends ConsumerStatefulWidget {
   final DecryptedEntry? existing;
-  const JournalEditorSheet({super.key, this.existing});
+  final String? promptText;
+  const JournalEditorSheet({super.key, this.existing, this.promptText});
   @override
   ConsumerState<JournalEditorSheet> createState() => _JournalEditorSheetState();
 }
@@ -29,6 +32,7 @@ class _JournalEditorSheetState extends ConsumerState<JournalEditorSheet> {
   late final TextEditingController _body =
       TextEditingController(text: widget.existing?.body ?? '');
   late JournalKind _kind = widget.existing?.kind ?? JournalKind.daily;
+  late Mood? _mood = widget.existing?.mood;
   bool _busy = false;
 
   @override
@@ -56,6 +60,7 @@ class _JournalEditorSheetState extends ConsumerState<JournalEditorSheet> {
           body: _body.text,
           vault: vault,
           createdAt: widget.existing?.meta.createdAt,
+          mood: _mood,
         );
     if (mounted) Navigator.of(context).pop();
   }
@@ -124,10 +129,51 @@ class _JournalEditorSheetState extends ConsumerState<JournalEditorSheet> {
               maxLines: 14,
               style: t.bodyLarge?.copyWith(height: 1.5),
               decoration: InputDecoration(
-                hintText: _kind.prompt,
+                hintText: widget.promptText ?? _kind.prompt,
                 hintStyle: t.bodyLarge?.copyWith(color: AppColors.faint),
                 border: InputBorder.none,
               ),
+            ),
+            const SizedBox(height: Insets.lg),
+            Text('HOW ARE YOU FEELING?', style: t.labelSmall),
+            const SizedBox(height: Insets.sm),
+            Row(
+              children: [
+                for (final m in Mood.values)
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: GestureDetector(
+                        onTap: () => setState(
+                            () => _mood = _mood == m ? null : m),
+                        child: AnimatedContainer(
+                          duration: Motion.fast,
+                          padding: const EdgeInsets.symmetric(vertical: Insets.sm),
+                          decoration: BoxDecoration(
+                            color: _mood == m
+                                ? m.color.withValues(alpha: 0.2)
+                                : AppColors.graphiteHi,
+                            borderRadius: BorderRadius.circular(Radii.sm),
+                            border: Border.all(
+                                color: _mood == m ? m.color : AppColors.border),
+                          ),
+                          child: Column(
+                            children: [
+                              Text(m.emoji, style: const TextStyle(fontSize: 20)),
+                              const SizedBox(height: 2),
+                              Text(m.label,
+                                  style: TextStyle(
+                                      fontSize: 10,
+                                      color: _mood == m
+                                          ? AppColors.frostWhite
+                                          : AppColors.muted)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
             ),
             const SizedBox(height: Insets.lg),
             Align(

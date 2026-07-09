@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
+import '../../../core/util/current_day.dart';
 import '../../../core/widgets/glass_card.dart';
 import '../application/journal_providers.dart';
 import '../data/journal_kind.dart';
+import '../data/journal_mood.dart';
+import '../data/journal_prompts.dart';
 import 'burn_ritual.dart';
 import 'journal_editor_sheet.dart';
 import 'journal_lock_view.dart';
@@ -32,6 +35,14 @@ class _JournalList extends ConsumerStatefulWidget {
 
 class _JournalListState extends ConsumerState<_JournalList> {
   bool _showArchived = false;
+  final _search = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,6 +51,7 @@ class _JournalListState extends ConsumerState<_JournalList> {
     final archived =
         ref.watch(decryptedArchivedProvider).asData?.value ?? const [];
     final isSunday = DateTime.now().weekday == DateTime.sunday;
+    final prompt = promptForDay(ref.watch(currentDayProvider));
 
     return CustomScrollView(
       slivers: [
@@ -83,20 +95,62 @@ class _JournalListState extends ConsumerState<_JournalList> {
                 _SundayBanner(onTap: () => showBurnRitual(context)),
               ],
               const SizedBox(height: Insets.md),
+              _PromptCard(
+                prompt: prompt,
+                onWrite: () =>
+                    showJournalEditor(context, promptText: prompt),
+              ),
+              const SizedBox(height: Insets.md),
+              TextField(
+                controller: _search,
+                onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+                style: t.bodyMedium,
+                decoration: InputDecoration(
+                  hintText: 'Search entries',
+                  prefixIcon: const Icon(Icons.search, size: 18, color: AppColors.faint),
+                  isDense: true,
+                  filled: true,
+                  fillColor: AppColors.graphiteHi,
+                  hintStyle: t.bodyMedium?.copyWith(color: AppColors.faint),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(Radii.sm),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: Insets.md),
               entriesAsync.when(
                 loading: () => const Padding(
                   padding: EdgeInsets.only(top: Insets.xxl),
                   child: Center(child: CircularProgressIndicator()),
                 ),
                 error: (e, _) => Text('Could not read entries: $e', style: t.bodyMedium),
-                data: (entries) => entries.isEmpty
-                    ? _EmptyJournal(onAdd: () => showJournalEditor(context))
-                    : Column(
-                        children: [
-                          for (final e in entries)
-                            _EntryCard(entry: e, onTap: () => showJournalEditor(context, existing: e)),
-                        ],
-                      ),
+                data: (all) {
+                  final entries = _query.isEmpty
+                      ? all
+                      : all
+                          .where((e) =>
+                              e.title.toLowerCase().contains(_query) ||
+                              e.body.toLowerCase().contains(_query))
+                          .toList();
+                  if (all.isEmpty) {
+                    return _EmptyJournal(onAdd: () => showJournalEditor(context));
+                  }
+                  if (entries.isEmpty) {
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: Insets.xl),
+                      child: Text('No entries match “$_query”.',
+                          style: t.bodyMedium?.copyWith(color: AppColors.muted),
+                          textAlign: TextAlign.center),
+                    );
+                  }
+                  return Column(
+                    children: [
+                      for (final e in entries)
+                        _EntryCard(entry: e, onTap: () => showJournalEditor(context, existing: e)),
+                    ],
+                  );
+                },
               ),
               if (archived.isNotEmpty) ...[
                 const SizedBox(height: Insets.md),
@@ -202,6 +256,10 @@ class _EntryCard extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(child: Text(title, style: t.titleMedium, maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      if (entry.mood != null) ...[
+                        Text(entry.mood!.emoji, style: const TextStyle(fontSize: 14)),
+                        const SizedBox(width: 6),
+                      ],
                       Text('${_months[created.month]} ${created.day}', style: t.labelSmall),
                     ],
                   ),
@@ -214,6 +272,41 @@ class _EntryCard extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _PromptCard extends StatelessWidget {
+  final String prompt;
+  final VoidCallback onWrite;
+  const _PromptCard({required this.prompt, required this.onWrite});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return GlassCard(
+      onTap: onWrite,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Icon(Icons.auto_awesome_outlined,
+                size: 14, color: AppColors.softPurple),
+            const SizedBox(width: 6),
+            Text("TODAY'S PROMPT", style: t.labelSmall),
+          ]),
+          const SizedBox(height: Insets.sm),
+          Text(prompt,
+              style: t.titleMedium?.copyWith(height: 1.35, fontWeight: FontWeight.w500)),
+          const SizedBox(height: Insets.sm),
+          Row(children: [
+            Text('Write on this',
+                style: t.bodySmall?.copyWith(
+                    color: AppColors.softPurple, fontWeight: FontWeight.w600)),
+            const Icon(Icons.arrow_forward, size: 14, color: AppColors.softPurple),
+          ]),
+        ],
       ),
     );
   }

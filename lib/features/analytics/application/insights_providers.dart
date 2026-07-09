@@ -6,6 +6,8 @@ import '../../../core/util/day.dart';
 import '../../habits/application/habit_providers.dart';
 import '../../habits/data/habit_schedule.dart';
 import '../../heatmap/application/heatmap_providers.dart';
+import '../../journal/application/journal_providers.dart';
+import '../../journal/data/journal_mood.dart';
 
 enum InsightTone { positive, neutral, warn }
 
@@ -143,5 +145,50 @@ final insightsProvider = Provider<List<Insight>>((ref) {
     ));
   }
 
-  return out.take(5).toList();
+  // 4) Mood ↔ habit: which habit tracks with feeling better. Only available
+  // when the journal is unlocked (mood lives inside the encrypted entries).
+  final journal =
+      ref.watch(decryptedJournalProvider).asData?.value ?? const [];
+  if (journal.isNotEmpty) {
+    final moodByDay = <DateTime, List<int>>{};
+    for (final d in journal) {
+      final m = d.mood;
+      if (m != null) {
+        (moodByDay[dayKey(d.meta.createdAt)] ??= []).add(m.score);
+      }
+    }
+    if (moodByDay.length >= 8) {
+      final dayMood = {
+        for (final e in moodByDay.entries)
+          e.key: e.value.reduce((a, b) => a + b) / e.value.length
+      };
+      (String, double, double)? bestMood;
+      for (final h in active) {
+        final on = <double>[], off = <double>[];
+        final done = byHabit[h.id] ?? const <DateTime>{};
+        dayMood.forEach((day, mood) {
+          (done.contains(day) ? on : off).add(mood);
+        });
+        if (on.length < 4 || off.length < 4) continue;
+        final onAvg = on.reduce((a, b) => a + b) / on.length;
+        final offAvg = off.reduce((a, b) => a + b) / off.length;
+        if (onAvg - offAvg >= 0.5) {
+          if (bestMood == null || onAvg - offAvg > bestMood.$2 - bestMood.$3) {
+            bestMood = (h.name, onAvg, offAvg);
+          }
+        }
+      }
+      final mood = bestMood;
+      if (mood != null) {
+        out.add(Insight(
+          Icons.sentiment_satisfied_alt_outlined,
+          'Your mood runs higher on days you do ${mood.$1} '
+          '(avg ${mood.$2.toStringAsFixed(1)} vs ${mood.$3.toStringAsFixed(1)}).',
+          InsightTone.positive,
+        ));
+      }
+    }
+  }
+
+  return out.take(6).toList();
 });

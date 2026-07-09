@@ -6,6 +6,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../challenges/application/challenge_providers.dart';
 import '../application/habit_providers.dart';
+import '../../focus/focus_timer_screen.dart';
 import 'habit_editor_sheet.dart';
 import '../data/habit_type.dart';
 
@@ -175,6 +176,16 @@ class HabitTile extends ConsumerWidget {
               ),
             ),
             const Divider(height: 1, color: AppColors.border),
+            if (HabitTypeX.fromIndex(habit.type) == HabitType.time)
+              ListTile(
+                leading: const Icon(Icons.timer_outlined),
+                title: const Text('Start focus session'),
+                subtitle: const Text('A timer that logs the minutes for you'),
+                onTap: () {
+                  Navigator.pop(sheetCtx);
+                  showFocusTimer(context, habit);
+                },
+              ),
             ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Edit habit'),

@@ -8,6 +8,7 @@ import 'package:uuid/uuid.dart';
 import '../../../core/db/database.dart';
 import '../../habits/application/habit_providers.dart' show databaseProvider;
 import '../data/journal_kind.dart';
+import '../data/journal_mood.dart';
 import 'biometric_vault.dart';
 import 'journal_crypto.dart';
 
@@ -50,15 +51,26 @@ final journalEntriesProvider = StreamProvider<List<JournalEntry>>(
 final archivedJournalEntriesProvider = StreamProvider<List<JournalEntry>>(
     (ref) => ref.watch(databaseProvider).watchJournalEntries(archived: true));
 
-/// A journal entry decrypted for display. Title + body live inside the
+/// A journal entry decrypted for display. Title + body + mood live inside the
 /// ciphertext, so nothing readable is stored on disk.
 class DecryptedEntry {
   final JournalEntry meta;
   final String title;
   final String body;
-  const DecryptedEntry(this.meta, this.title, this.body);
+  final Mood? mood;
+  const DecryptedEntry(this.meta, this.title, this.body, {this.mood});
 
   JournalKind get kind => JournalKindX.fromIndex(meta.kind);
+}
+
+DecryptedEntry _decode(JournalEntry e, String plain) {
+  final map = jsonDecode(plain) as Map<String, dynamic>;
+  return DecryptedEntry(
+    e,
+    (map['t'] as String?) ?? '',
+    (map['b'] as String?) ?? '',
+    mood: MoodX.fromIndex((map['m'] as num?)?.toInt()),
+  );
 }
 
 /// Decrypts all active entries when the vault is open. Re-runs when entries or
@@ -70,9 +82,7 @@ final decryptedJournalProvider = FutureProvider<List<DecryptedEntry>>((ref) asyn
   final out = <DecryptedEntry>[];
   for (final e in entries) {
     try {
-      final plain = await vault.decryptText(e.nonce, e.cipher, e.mac);
-      final map = jsonDecode(plain) as Map<String, dynamic>;
-      out.add(DecryptedEntry(e, (map['t'] as String?) ?? '', (map['b'] as String?) ?? ''));
+      out.add(_decode(e, await vault.decryptText(e.nonce, e.cipher, e.mac)));
     } catch (_) {/* skip entries this key can't open */}
   }
   return out;
@@ -88,10 +98,7 @@ final decryptedArchivedProvider =
   final out = <DecryptedEntry>[];
   for (final e in entries) {
     try {
-      final plain = await vault.decryptText(e.nonce, e.cipher, e.mac);
-      final map = jsonDecode(plain) as Map<String, dynamic>;
-      out.add(DecryptedEntry(
-          e, (map['t'] as String?) ?? '', (map['b'] as String?) ?? ''));
+      out.add(_decode(e, await vault.decryptText(e.nonce, e.cipher, e.mac)));
     } catch (_) {/* skip entries this key can't open */}
   }
   return out;
@@ -111,8 +118,9 @@ class JournalService {
     required String body,
     required JournalVault vault,
     DateTime? createdAt,
+    Mood? mood,
   }) async {
-    final payload = jsonEncode({'t': title ?? '', 'b': body});
+    final payload = jsonEncode({'t': title ?? '', 'b': body, 'm': mood?.index});
     final enc = await vault.encryptText(payload);
     final now = DateTime.now();
     await _db.upsertJournalEntry(JournalEntriesCompanion(
