@@ -12,6 +12,7 @@ import '../../heatmap/application/heatmap_providers.dart';
 import '../../heatmap/presentation/contribution_heatmap.dart';
 import '../../heatmap/presentation/day_detail_sheet.dart';
 import '../application/analytics_providers.dart';
+import '../application/insights_providers.dart';
 
 HeatmapRange _rangeFor(ReviewPeriod p) => switch (p) {
       ReviewPeriod.week => HeatmapRange.week,
@@ -33,6 +34,7 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     final t = Theme.of(context).textTheme;
     final s = ref.watch(analyticsProvider(_period));
     final stats = ref.watch(dayStatsProvider);
+    final insights = ref.watch(insightsProvider);
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -60,6 +62,15 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                   Expanded(child: _StatTile('JOURNAL', '${s.journalCount}', 'entries', AppColors.warmAmber)),
                 ],
               ),
+              if (insights.isNotEmpty) ...[
+                const SizedBox(height: Insets.lg),
+                Text('INSIGHTS', style: t.labelSmall?.copyWith(letterSpacing: 1.6)),
+                const SizedBox(height: Insets.md),
+                for (final ins in insights) ...[
+                  _InsightCard(insight: ins),
+                  const SizedBox(height: Insets.sm),
+                ],
+              ],
               const SizedBox(height: Insets.lg),
               Text(_period == ReviewPeriod.year ? 'LIFE CONTRIBUTION GRAPH' : 'HEATMAP REPLAY',
                   style: t.labelSmall?.copyWith(letterSpacing: 1.6)),
@@ -273,6 +284,42 @@ class _StatTile extends StatelessWidget {
             const SizedBox(width: 6),
             Flexible(child: Text(label, style: t.labelSmall, overflow: TextOverflow.ellipsis)),
           ]),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  final Insight insight;
+  const _InsightCard({required this.insight});
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    final color = switch (insight.tone) {
+      InsightTone.positive => const Color(0xFF34D399),
+      InsightTone.warn => AppColors.warmAmber,
+      InsightTone.neutral => AppColors.electricBlue,
+    };
+    return GlassCard(
+      padding: const EdgeInsets.all(Insets.md),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(9)),
+            child: Icon(insight.icon, color: color, size: 16),
+          ),
+          const SizedBox(width: Insets.md),
+          Expanded(
+            child: Text(insight.text,
+                style: t.bodyMedium?.copyWith(height: 1.35)),
+          ),
         ],
       ),
     );
