@@ -6,13 +6,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/notifications/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/theme/theme_prefs.dart';
+import 'core/util/current_day.dart';
 import 'features/habits/application/habit_providers.dart'
-    show activeHabitsProvider, databaseProvider;
+    show activeHabitsProvider, allEntriesProvider, databaseProvider;
+import 'features/heatmap/application/heatmap_providers.dart';
 import 'features/journal/application/journal_providers.dart';
 import 'features/quotes/quotes.dart';
 import 'features/shell/presentation/root_shell.dart';
 import 'features/sync/application/sync_engine.dart';
 import 'features/updates/update_service.dart';
+import 'features/widgets/habit_widget_service.dart';
 
 class QuantumHabitsApp extends ConsumerStatefulWidget {
   const QuantumHabitsApp({super.key});
@@ -25,6 +29,7 @@ class _QuantumHabitsAppState extends ConsumerState<QuantumHabitsApp> {
   UpdateInfo? _pendingAutoInstall;
   bool _installing = false;
   AppLifecycleListener? _lifecycle;
+  Timer? _widgetDebounce;
 
   @override
   void initState() {
@@ -58,11 +63,16 @@ class _QuantumHabitsAppState extends ConsumerState<QuantumHabitsApp> {
       if (habits != null) {
         unawaited(NotificationService.scheduleHabitReminders(habits));
       }
+      _updateWidget();
     });
+    // Keep the home-screen widget fresh when completions change.
+    ref.listenManual(allEntriesProvider, (_, _) => _updateWidget());
+    Future.delayed(const Duration(seconds: 3), _updateWidget);
     _lifecycle = AppLifecycleListener(
       onResume: () {
         _rescheduleQuotes();
         _rescheduleReminders();
+        _updateWidget();
       },
       // "Updates itself without asking": the silent install runs the moment
       // the user switches away, so the restart never interrupts them.
@@ -91,7 +101,22 @@ class _QuantumHabitsAppState extends ConsumerState<QuantumHabitsApp> {
   @override
   void dispose() {
     _lifecycle?.dispose();
+    _widgetDebounce?.cancel();
     super.dispose();
+  }
+
+  void _updateWidget() {
+    if (!Platform.isAndroid) return;
+    _widgetDebounce?.cancel();
+    _widgetDebounce = Timer(const Duration(seconds: 2), () {
+      if (!mounted) return;
+      unawaited(HabitWidgetService.update(
+        stats: ref.read(dayStatsProvider),
+        palette: ref.read(heatmapPaletteProvider),
+        currentStreak: ref.read(streakStatsProvider).current,
+        today: ref.read(currentDayProvider),
+      ));
+    });
   }
 
   void _rescheduleReminders() {
