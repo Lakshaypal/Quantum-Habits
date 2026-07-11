@@ -272,6 +272,7 @@ class SyncEngine extends Notifier<SyncStatus> {
               challengeRows: result.toWriteLocal.challenges,
               challengeHabitRows: result.toWriteLocal.challengeHabits,
               journalRows: result.toWriteLocal.journals,
+              taskRows: result.toWriteLocal.tasks,
               keyValueRows: result.toWriteLocal.keyValues,
             ));
         onRemoteApplied?.call(result.toWriteLocal);

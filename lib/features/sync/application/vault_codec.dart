@@ -33,6 +33,7 @@ class VaultData {
   final List<Challenge> challenges;
   final List<ChallengeHabit> challengeHabits;
   final List<JournalEntry> journals;
+  final List<Task> tasks;
   final List<KeyValue> keyValues;
   const VaultData({
     this.habits = const [],
@@ -40,6 +41,7 @@ class VaultData {
     this.challenges = const [],
     this.challengeHabits = const [],
     this.journals = const [],
+    this.tasks = const [],
     this.keyValues = const [],
   });
 
@@ -49,6 +51,7 @@ class VaultData {
         challenges: await db.allChallenges(),
         challengeHabits: await db.allChallengeHabits(),
         journals: await db.allJournalEntries(),
+        tasks: await db.allTasks(),
         keyValues: (await db.allKeyValues())
             .where((kv) => !kLocalOnlyKeys.contains(kv.key))
             .toList(),
@@ -101,6 +104,11 @@ abstract final class VaultCodec {
       'challenges': v.challenges.map(challengeJson).toList(),
       'challengeHabits': v.challengeHabits.map(chLinkJson).toList(),
       'journals': v.journals.map(journalJson).toList(),
+      // Added mid-v2: a pre-tasks client re-uploads a vault WITHOUT this key
+      // (it doesn't round-trip unknown keys), but LWW re-merges tasks back in
+      // from any device that has them, so nothing is lost — the vault just
+      // flaps until every device is updated (auto-update makes that quick).
+      'tasks': v.tasks.map(taskJson).toList(),
       'keyValues': [
         for (final kv in v.keyValues)
           if (!kLocalOnlyKeys.contains(kv.key)) kvJson(kv)
@@ -136,6 +144,7 @@ abstract final class VaultCodec {
       challenges: list('challenges', challengeFrom),
       challengeHabits: list('challengeHabits', chLinkFrom),
       journals: list('journals', journalFrom),
+      tasks: list('tasks', taskFrom),
       keyValues: list('keyValues', kvFrom)
           .where((kv) => !kLocalOnlyKeys.contains(kv.key))
           .toList(),
@@ -229,6 +238,29 @@ abstract final class VaultCodec {
         cipher: _unb64(m['cipher']), nonce: _unb64(m['nonce']), mac: _unb64(m['mac']),
         createdAt: _dt(m['created']), updatedAt: _dt(m['updated']),
         archived: m['arch'] as bool,
+        deleted: m['del'] as bool? ?? false,
+        updatedAtMs: (m['up'] as num?)?.toInt() ?? 0,
+      );
+
+  // ---- Task ----
+  static Map<String, dynamic> taskJson(Task t) => {
+        'id': t.id, 'title': t.title, 'notes': t.notes,
+        'due': t.dueDate == null ? null : dayStr(t.dueDate!),
+        'dueMin': t.dueMinutes, 'prio': t.priority, 'done': t.done,
+        'doneAt': t.doneAt == null ? null : _ms(t.doneAt!),
+        'created': _ms(t.createdAt), 'sort': t.sortOrder,
+        'del': t.deleted, 'up': t.updatedAtMs,
+      };
+  static Task taskFrom(Map<String, dynamic> m) => Task(
+        id: m['id'] as String, title: m['title'] as String,
+        notes: m['notes'] as String?,
+        dueDate: m['due'] == null ? null : parseDay(m['due'] as String),
+        dueMinutes: (m['dueMin'] as num?)?.toInt(),
+        priority: (m['prio'] as num?)?.toInt() ?? 1,
+        done: m['done'] as bool? ?? false,
+        doneAt: m['doneAt'] == null ? null : _dt(m['doneAt']),
+        createdAt: _dt(m['created']),
+        sortOrder: (m['sort'] as num?)?.toInt() ?? 0,
         deleted: m['del'] as bool? ?? false,
         updatedAtMs: (m['up'] as num?)?.toInt() ?? 0,
       );

@@ -14,6 +14,8 @@ import '../../journal/application/journal_providers.dart';
 import '../../journal/presentation/journal_editor_sheet.dart';
 import '../../journal/presentation/journal_screen.dart';
 import '../../research/presentation/research_screen.dart';
+import '../../tasks/presentation/task_editor_sheet.dart';
+import '../../tasks/presentation/tasks_screen.dart';
 import '../../updates/update_prompt.dart';
 
 class RootShell extends ConsumerStatefulWidget {
@@ -27,6 +29,7 @@ class _RootShellState extends ConsumerState<RootShell> {
 
   static const _tabs = <({IconData icon, String label})>[
     (icon: Icons.grid_view_rounded, label: 'Home'),
+    (icon: Icons.check_circle_outline, label: 'Tasks'),
     (icon: Icons.flag_rounded, label: 'Challenges'),
     (icon: Icons.menu_book_rounded, label: 'Journal'),
     (icon: Icons.science_outlined, label: 'Research'),
@@ -37,8 +40,10 @@ class _RootShellState extends ConsumerState<RootShell> {
       case 0:
         showHabitEditor(context);
       case 1:
-        showChallengeEditor(context);
+        showTaskEditor(context);
       case 2:
+        showChallengeEditor(context);
+      case 3:
         showJournalEditor(context);
     }
   }
@@ -48,8 +53,8 @@ class _RootShellState extends ConsumerState<RootShell> {
     // The journal FAB only makes sense once the vault is unlocked.
     final journalUnlocked = ref.watch(journalSessionProvider) != null;
     // No FAB on Research (set up via the screen) or on a locked Journal.
-    final showFab = _index < 2 || (_index == 2 && journalUnlocked);
-    const labels = ['Habit', 'Challenge', 'Entry', ''];
+    final showFab = _index < 3 || (_index == 3 && journalUnlocked);
+    const labels = ['Habit', 'Task', 'Challenge', 'Entry', ''];
 
     return Scaffold(
       extendBody: true,
@@ -74,7 +79,13 @@ class _RootShellState extends ConsumerState<RootShell> {
               Expanded(
                 child: IndexedStack(
                   index: _index,
-                  children: const [HomeScreen(), ChallengesScreen(), JournalScreen(), ResearchScreen()],
+                  children: const [
+                    HomeScreen(),
+                    TasksScreen(),
+                    ChallengesScreen(),
+                    JournalScreen(),
+                    ResearchScreen(),
+                  ],
                 ),
               ),
             ],

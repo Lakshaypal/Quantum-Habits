@@ -15,6 +15,7 @@ import 'features/journal/application/journal_providers.dart';
 import 'features/quotes/quotes.dart';
 import 'features/shell/presentation/root_shell.dart';
 import 'features/sync/application/sync_engine.dart';
+import 'features/tasks/application/task_providers.dart';
 import 'features/updates/update_service.dart';
 import 'features/widgets/habit_widget_service.dart';
 
@@ -67,6 +68,13 @@ class _QuantumHabitsAppState extends ConsumerState<QuantumHabitsApp> {
     });
     // Keep the home-screen widget fresh when completions change.
     ref.listenManual(allEntriesProvider, (_, _) => _updateWidget());
+    // Task reminders follow the task list (add/edit/complete/sync).
+    ref.listenManual(tasksProvider, (_, next) {
+      final tasks = next.asData?.value;
+      if (tasks != null) {
+        unawaited(NotificationService.scheduleTaskReminders(tasks));
+      }
+    });
     Future.delayed(const Duration(seconds: 3), _updateWidget);
     _lifecycle = AppLifecycleListener(
       onResume: () {

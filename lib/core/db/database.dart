@@ -108,6 +108,26 @@ class JournalEntries extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+/// A one-off to-do item. Unlike habits (recurring, streak-scored), tasks are
+/// done once: optional due day + time, 0–3 priority, tombstoned on delete.
+class Tasks extends Table {
+  TextColumn get id => text()();
+  TextColumn get title => text()();
+  TextColumn get notes => text().nullable()();
+  DateTimeColumn get dueDate => dateTime().nullable()(); // local midnight
+  IntColumn get dueMinutes => integer().nullable()(); // minutes since midnight
+  IntColumn get priority => integer().withDefault(const Constant(1))();
+  BoolColumn get done => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get doneAt => dateTime().nullable()();
+  DateTimeColumn get createdAt => dateTime()();
+  IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  BoolColumn get deleted => boolean().withDefault(const Constant(false))();
+  IntColumn get updatedAtMs => integer().withDefault(const Constant(0))();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
 /// Generic key/value store for non-secret metadata (journal salt, verifier,
 /// theme preferences). Synced per key with last-writer-wins; device-local keys
 /// are excluded by the vault codec.
@@ -120,14 +140,21 @@ class KeyValues extends Table {
   Set<Column> get primaryKey => {key};
 }
 
-@DriftDatabase(
-    tables: [Habits, HabitEntries, Challenges, ChallengeHabits, JournalEntries, KeyValues])
+@DriftDatabase(tables: [
+  Habits,
+  HabitEntries,
+  Challenges,
+  ChallengeHabits,
+  JournalEntries,
+  Tasks,
+  KeyValues
+])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(driftDatabase(name: 'quantum_habits'));
   AppDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   static int _now() => DateTime.now().millisecondsSinceEpoch;
 
@@ -193,6 +220,9 @@ class AppDatabase extends _$AppDatabase {
             await _addColumnSafe(m, habits, habits.scheduleKind);
             await _addColumnSafe(m, habits, habits.scheduleMask);
             await _addColumnSafe(m, habits, habits.reminderMinutes);
+          }
+          if (from < 7) {
+            await _createTableSafe(m, tasks);
           }
         },
         beforeOpen: (details) async {
@@ -367,6 +397,35 @@ class AppDatabase extends _$AppDatabase {
               deleted: const Value(true),
               updatedAtMs: Value(_now())));
 
+  // ---- Tasks ----
+  Stream<List<Task>> watchTasks() => (select(tasks)
+        ..where((t) => t.deleted.equals(false))
+        ..orderBy([
+          (t) => OrderingTerm(expression: t.done),
+          (t) => OrderingTerm(expression: t.sortOrder),
+          (t) => OrderingTerm(expression: t.createdAt),
+        ]))
+      .watch();
+
+  /// Upsert; also revives a tombstoned id (undo).
+  Future<void> upsertTask(TasksCompanion task) =>
+      into(tasks).insertOnConflictUpdate(task.copyWith(
+          deleted: const Value(false), updatedAtMs: Value(_now())));
+
+  Future<void> setTaskDone(String id, bool done) =>
+      (update(tasks)..where((t) => t.id.equals(id))).write(TasksCompanion(
+        done: Value(done),
+        doneAt: Value(done ? DateTime.now() : null),
+        updatedAtMs: Value(_now()),
+      ));
+
+  /// Tombstone, so the deletion syncs instead of resurrecting.
+  Future<void> deleteTask(String id) =>
+      (update(tasks)..where((t) => t.id.equals(id))).write(TasksCompanion(
+          deleted: const Value(true), updatedAtMs: Value(_now())));
+
+  Future<List<Task>> allTasks() => select(tasks).get();
+
   // ---- Key/value ----
   Future<String?> getKV(String key) async {
     final row =
@@ -403,6 +462,7 @@ class AppDatabase extends _$AppDatabase {
     List<Challenge> challengeRows = const [],
     List<ChallengeHabit> challengeHabitRows = const [],
     List<JournalEntry> journalRows = const [],
+    List<Task> taskRows = const [],
     List<KeyValue> keyValueRows = const [],
   }) {
     return transaction(() async {
@@ -413,6 +473,7 @@ class AppDatabase extends _$AppDatabase {
         b.insertAllOnConflictUpdate(journalEntries, journalRows);
         b.insertAllOnConflictUpdate(habitEntries, entryRows);
         b.insertAllOnConflictUpdate(challengeHabits, challengeHabitRows);
+        b.insertAllOnConflictUpdate(tasks, taskRows);
         b.insertAllOnConflictUpdate(keyValues, keyValueRows);
       });
     });

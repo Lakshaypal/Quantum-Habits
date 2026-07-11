@@ -3325,6 +3325,708 @@ class JournalEntriesCompanion extends UpdateCompanion<JournalEntry> {
   }
 }
 
+class $TasksTable extends Tasks with TableInfo<$TasksTable, Task> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $TasksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _notesMeta = const VerificationMeta('notes');
+  @override
+  late final GeneratedColumn<String> notes = GeneratedColumn<String>(
+    'notes',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dueDateMeta = const VerificationMeta(
+    'dueDate',
+  );
+  @override
+  late final GeneratedColumn<DateTime> dueDate = GeneratedColumn<DateTime>(
+    'due_date',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _dueMinutesMeta = const VerificationMeta(
+    'dueMinutes',
+  );
+  @override
+  late final GeneratedColumn<int> dueMinutes = GeneratedColumn<int>(
+    'due_minutes',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _priorityMeta = const VerificationMeta(
+    'priority',
+  );
+  @override
+  late final GeneratedColumn<int> priority = GeneratedColumn<int>(
+    'priority',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(1),
+  );
+  static const VerificationMeta _doneMeta = const VerificationMeta('done');
+  @override
+  late final GeneratedColumn<bool> done = GeneratedColumn<bool>(
+    'done',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("done" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _doneAtMeta = const VerificationMeta('doneAt');
+  @override
+  late final GeneratedColumn<DateTime> doneAt = GeneratedColumn<DateTime>(
+    'done_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _sortOrderMeta = const VerificationMeta(
+    'sortOrder',
+  );
+  @override
+  late final GeneratedColumn<int> sortOrder = GeneratedColumn<int>(
+    'sort_order',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _deletedMeta = const VerificationMeta(
+    'deleted',
+  );
+  @override
+  late final GeneratedColumn<bool> deleted = GeneratedColumn<bool>(
+    'deleted',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("deleted" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _updatedAtMsMeta = const VerificationMeta(
+    'updatedAtMs',
+  );
+  @override
+  late final GeneratedColumn<int> updatedAtMs = GeneratedColumn<int>(
+    'updated_at_ms',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    title,
+    notes,
+    dueDate,
+    dueMinutes,
+    priority,
+    done,
+    doneAt,
+    createdAt,
+    sortOrder,
+    deleted,
+    updatedAtMs,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'tasks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Task> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('notes')) {
+      context.handle(
+        _notesMeta,
+        notes.isAcceptableOrUnknown(data['notes']!, _notesMeta),
+      );
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(
+        _dueDateMeta,
+        dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta),
+      );
+    }
+    if (data.containsKey('due_minutes')) {
+      context.handle(
+        _dueMinutesMeta,
+        dueMinutes.isAcceptableOrUnknown(data['due_minutes']!, _dueMinutesMeta),
+      );
+    }
+    if (data.containsKey('priority')) {
+      context.handle(
+        _priorityMeta,
+        priority.isAcceptableOrUnknown(data['priority']!, _priorityMeta),
+      );
+    }
+    if (data.containsKey('done')) {
+      context.handle(
+        _doneMeta,
+        done.isAcceptableOrUnknown(data['done']!, _doneMeta),
+      );
+    }
+    if (data.containsKey('done_at')) {
+      context.handle(
+        _doneAtMeta,
+        doneAt.isAcceptableOrUnknown(data['done_at']!, _doneAtMeta),
+      );
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('sort_order')) {
+      context.handle(
+        _sortOrderMeta,
+        sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
+      );
+    }
+    if (data.containsKey('deleted')) {
+      context.handle(
+        _deletedMeta,
+        deleted.isAcceptableOrUnknown(data['deleted']!, _deletedMeta),
+      );
+    }
+    if (data.containsKey('updated_at_ms')) {
+      context.handle(
+        _updatedAtMsMeta,
+        updatedAtMs.isAcceptableOrUnknown(
+          data['updated_at_ms']!,
+          _updatedAtMsMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Task map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Task(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      notes: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}notes'],
+      ),
+      dueDate: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}due_date'],
+      ),
+      dueMinutes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}due_minutes'],
+      ),
+      priority: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}priority'],
+      )!,
+      done: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}done'],
+      )!,
+      doneAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}done_at'],
+      ),
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      sortOrder: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}sort_order'],
+      )!,
+      deleted: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}deleted'],
+      )!,
+      updatedAtMs: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}updated_at_ms'],
+      )!,
+    );
+  }
+
+  @override
+  $TasksTable createAlias(String alias) {
+    return $TasksTable(attachedDatabase, alias);
+  }
+}
+
+class Task extends DataClass implements Insertable<Task> {
+  final String id;
+  final String title;
+  final String? notes;
+  final DateTime? dueDate;
+  final int? dueMinutes;
+  final int priority;
+  final bool done;
+  final DateTime? doneAt;
+  final DateTime createdAt;
+  final int sortOrder;
+  final bool deleted;
+  final int updatedAtMs;
+  const Task({
+    required this.id,
+    required this.title,
+    this.notes,
+    this.dueDate,
+    this.dueMinutes,
+    required this.priority,
+    required this.done,
+    this.doneAt,
+    required this.createdAt,
+    required this.sortOrder,
+    required this.deleted,
+    required this.updatedAtMs,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['title'] = Variable<String>(title);
+    if (!nullToAbsent || notes != null) {
+      map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<DateTime>(dueDate);
+    }
+    if (!nullToAbsent || dueMinutes != null) {
+      map['due_minutes'] = Variable<int>(dueMinutes);
+    }
+    map['priority'] = Variable<int>(priority);
+    map['done'] = Variable<bool>(done);
+    if (!nullToAbsent || doneAt != null) {
+      map['done_at'] = Variable<DateTime>(doneAt);
+    }
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['sort_order'] = Variable<int>(sortOrder);
+    map['deleted'] = Variable<bool>(deleted);
+    map['updated_at_ms'] = Variable<int>(updatedAtMs);
+    return map;
+  }
+
+  TasksCompanion toCompanion(bool nullToAbsent) {
+    return TasksCompanion(
+      id: Value(id),
+      title: Value(title),
+      notes: notes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(notes),
+      dueDate: dueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDate),
+      dueMinutes: dueMinutes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueMinutes),
+      priority: Value(priority),
+      done: Value(done),
+      doneAt: doneAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(doneAt),
+      createdAt: Value(createdAt),
+      sortOrder: Value(sortOrder),
+      deleted: Value(deleted),
+      updatedAtMs: Value(updatedAtMs),
+    );
+  }
+
+  factory Task.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Task(
+      id: serializer.fromJson<String>(json['id']),
+      title: serializer.fromJson<String>(json['title']),
+      notes: serializer.fromJson<String?>(json['notes']),
+      dueDate: serializer.fromJson<DateTime?>(json['dueDate']),
+      dueMinutes: serializer.fromJson<int?>(json['dueMinutes']),
+      priority: serializer.fromJson<int>(json['priority']),
+      done: serializer.fromJson<bool>(json['done']),
+      doneAt: serializer.fromJson<DateTime?>(json['doneAt']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      deleted: serializer.fromJson<bool>(json['deleted']),
+      updatedAtMs: serializer.fromJson<int>(json['updatedAtMs']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'title': serializer.toJson<String>(title),
+      'notes': serializer.toJson<String?>(notes),
+      'dueDate': serializer.toJson<DateTime?>(dueDate),
+      'dueMinutes': serializer.toJson<int?>(dueMinutes),
+      'priority': serializer.toJson<int>(priority),
+      'done': serializer.toJson<bool>(done),
+      'doneAt': serializer.toJson<DateTime?>(doneAt),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'sortOrder': serializer.toJson<int>(sortOrder),
+      'deleted': serializer.toJson<bool>(deleted),
+      'updatedAtMs': serializer.toJson<int>(updatedAtMs),
+    };
+  }
+
+  Task copyWith({
+    String? id,
+    String? title,
+    Value<String?> notes = const Value.absent(),
+    Value<DateTime?> dueDate = const Value.absent(),
+    Value<int?> dueMinutes = const Value.absent(),
+    int? priority,
+    bool? done,
+    Value<DateTime?> doneAt = const Value.absent(),
+    DateTime? createdAt,
+    int? sortOrder,
+    bool? deleted,
+    int? updatedAtMs,
+  }) => Task(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    notes: notes.present ? notes.value : this.notes,
+    dueDate: dueDate.present ? dueDate.value : this.dueDate,
+    dueMinutes: dueMinutes.present ? dueMinutes.value : this.dueMinutes,
+    priority: priority ?? this.priority,
+    done: done ?? this.done,
+    doneAt: doneAt.present ? doneAt.value : this.doneAt,
+    createdAt: createdAt ?? this.createdAt,
+    sortOrder: sortOrder ?? this.sortOrder,
+    deleted: deleted ?? this.deleted,
+    updatedAtMs: updatedAtMs ?? this.updatedAtMs,
+  );
+  Task copyWithCompanion(TasksCompanion data) {
+    return Task(
+      id: data.id.present ? data.id.value : this.id,
+      title: data.title.present ? data.title.value : this.title,
+      notes: data.notes.present ? data.notes.value : this.notes,
+      dueDate: data.dueDate.present ? data.dueDate.value : this.dueDate,
+      dueMinutes: data.dueMinutes.present
+          ? data.dueMinutes.value
+          : this.dueMinutes,
+      priority: data.priority.present ? data.priority.value : this.priority,
+      done: data.done.present ? data.done.value : this.done,
+      doneAt: data.doneAt.present ? data.doneAt.value : this.doneAt,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      deleted: data.deleted.present ? data.deleted.value : this.deleted,
+      updatedAtMs: data.updatedAtMs.present
+          ? data.updatedAtMs.value
+          : this.updatedAtMs,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Task(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('notes: $notes, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('dueMinutes: $dueMinutes, ')
+          ..write('priority: $priority, ')
+          ..write('done: $done, ')
+          ..write('doneAt: $doneAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    title,
+    notes,
+    dueDate,
+    dueMinutes,
+    priority,
+    done,
+    doneAt,
+    createdAt,
+    sortOrder,
+    deleted,
+    updatedAtMs,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Task &&
+          other.id == this.id &&
+          other.title == this.title &&
+          other.notes == this.notes &&
+          other.dueDate == this.dueDate &&
+          other.dueMinutes == this.dueMinutes &&
+          other.priority == this.priority &&
+          other.done == this.done &&
+          other.doneAt == this.doneAt &&
+          other.createdAt == this.createdAt &&
+          other.sortOrder == this.sortOrder &&
+          other.deleted == this.deleted &&
+          other.updatedAtMs == this.updatedAtMs);
+}
+
+class TasksCompanion extends UpdateCompanion<Task> {
+  final Value<String> id;
+  final Value<String> title;
+  final Value<String?> notes;
+  final Value<DateTime?> dueDate;
+  final Value<int?> dueMinutes;
+  final Value<int> priority;
+  final Value<bool> done;
+  final Value<DateTime?> doneAt;
+  final Value<DateTime> createdAt;
+  final Value<int> sortOrder;
+  final Value<bool> deleted;
+  final Value<int> updatedAtMs;
+  final Value<int> rowid;
+  const TasksCompanion({
+    this.id = const Value.absent(),
+    this.title = const Value.absent(),
+    this.notes = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.dueMinutes = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.done = const Value.absent(),
+    this.doneAt = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.sortOrder = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  TasksCompanion.insert({
+    required String id,
+    required String title,
+    this.notes = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.dueMinutes = const Value.absent(),
+    this.priority = const Value.absent(),
+    this.done = const Value.absent(),
+    this.doneAt = const Value.absent(),
+    required DateTime createdAt,
+    this.sortOrder = const Value.absent(),
+    this.deleted = const Value.absent(),
+    this.updatedAtMs = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       title = Value(title),
+       createdAt = Value(createdAt);
+  static Insertable<Task> custom({
+    Expression<String>? id,
+    Expression<String>? title,
+    Expression<String>? notes,
+    Expression<DateTime>? dueDate,
+    Expression<int>? dueMinutes,
+    Expression<int>? priority,
+    Expression<bool>? done,
+    Expression<DateTime>? doneAt,
+    Expression<DateTime>? createdAt,
+    Expression<int>? sortOrder,
+    Expression<bool>? deleted,
+    Expression<int>? updatedAtMs,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (title != null) 'title': title,
+      if (notes != null) 'notes': notes,
+      if (dueDate != null) 'due_date': dueDate,
+      if (dueMinutes != null) 'due_minutes': dueMinutes,
+      if (priority != null) 'priority': priority,
+      if (done != null) 'done': done,
+      if (doneAt != null) 'done_at': doneAt,
+      if (createdAt != null) 'created_at': createdAt,
+      if (sortOrder != null) 'sort_order': sortOrder,
+      if (deleted != null) 'deleted': deleted,
+      if (updatedAtMs != null) 'updated_at_ms': updatedAtMs,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  TasksCompanion copyWith({
+    Value<String>? id,
+    Value<String>? title,
+    Value<String?>? notes,
+    Value<DateTime?>? dueDate,
+    Value<int?>? dueMinutes,
+    Value<int>? priority,
+    Value<bool>? done,
+    Value<DateTime?>? doneAt,
+    Value<DateTime>? createdAt,
+    Value<int>? sortOrder,
+    Value<bool>? deleted,
+    Value<int>? updatedAtMs,
+    Value<int>? rowid,
+  }) {
+    return TasksCompanion(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      notes: notes ?? this.notes,
+      dueDate: dueDate ?? this.dueDate,
+      dueMinutes: dueMinutes ?? this.dueMinutes,
+      priority: priority ?? this.priority,
+      done: done ?? this.done,
+      doneAt: doneAt ?? this.doneAt,
+      createdAt: createdAt ?? this.createdAt,
+      sortOrder: sortOrder ?? this.sortOrder,
+      deleted: deleted ?? this.deleted,
+      updatedAtMs: updatedAtMs ?? this.updatedAtMs,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (notes.present) {
+      map['notes'] = Variable<String>(notes.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<DateTime>(dueDate.value);
+    }
+    if (dueMinutes.present) {
+      map['due_minutes'] = Variable<int>(dueMinutes.value);
+    }
+    if (priority.present) {
+      map['priority'] = Variable<int>(priority.value);
+    }
+    if (done.present) {
+      map['done'] = Variable<bool>(done.value);
+    }
+    if (doneAt.present) {
+      map['done_at'] = Variable<DateTime>(doneAt.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (sortOrder.present) {
+      map['sort_order'] = Variable<int>(sortOrder.value);
+    }
+    if (deleted.present) {
+      map['deleted'] = Variable<bool>(deleted.value);
+    }
+    if (updatedAtMs.present) {
+      map['updated_at_ms'] = Variable<int>(updatedAtMs.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('TasksCompanion(')
+          ..write('id: $id, ')
+          ..write('title: $title, ')
+          ..write('notes: $notes, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('dueMinutes: $dueMinutes, ')
+          ..write('priority: $priority, ')
+          ..write('done: $done, ')
+          ..write('doneAt: $doneAt, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('deleted: $deleted, ')
+          ..write('updatedAtMs: $updatedAtMs, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $KeyValuesTable extends KeyValues
     with TableInfo<$KeyValuesTable, KeyValue> {
   @override
@@ -3599,6 +4301,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $JournalEntriesTable journalEntries = $JournalEntriesTable(this);
+  late final $TasksTable tasks = $TasksTable(this);
   late final $KeyValuesTable keyValues = $KeyValuesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -3610,6 +4313,7 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     challenges,
     challengeHabits,
     journalEntries,
+    tasks,
     keyValues,
   ];
   @override
@@ -5877,6 +6581,336 @@ typedef $$JournalEntriesTableProcessedTableManager =
       JournalEntry,
       PrefetchHooks Function()
     >;
+typedef $$TasksTableCreateCompanionBuilder =
+    TasksCompanion Function({
+      required String id,
+      required String title,
+      Value<String?> notes,
+      Value<DateTime?> dueDate,
+      Value<int?> dueMinutes,
+      Value<int> priority,
+      Value<bool> done,
+      Value<DateTime?> doneAt,
+      required DateTime createdAt,
+      Value<int> sortOrder,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
+      Value<int> rowid,
+    });
+typedef $$TasksTableUpdateCompanionBuilder =
+    TasksCompanion Function({
+      Value<String> id,
+      Value<String> title,
+      Value<String?> notes,
+      Value<DateTime?> dueDate,
+      Value<int?> dueMinutes,
+      Value<int> priority,
+      Value<bool> done,
+      Value<DateTime?> doneAt,
+      Value<DateTime> createdAt,
+      Value<int> sortOrder,
+      Value<bool> deleted,
+      Value<int> updatedAtMs,
+      Value<int> rowid,
+    });
+
+class $$TasksTableFilterComposer extends Composer<_$AppDatabase, $TasksTable> {
+  $$TasksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get dueMinutes => $composableBuilder(
+    column: $table.dueMinutes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get done => $composableBuilder(
+    column: $table.done,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get doneAt => $composableBuilder(
+    column: $table.doneAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$TasksTableOrderingComposer
+    extends Composer<_$AppDatabase, $TasksTable> {
+  $$TasksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get notes => $composableBuilder(
+    column: $table.notes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get dueDate => $composableBuilder(
+    column: $table.dueDate,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get dueMinutes => $composableBuilder(
+    column: $table.dueMinutes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get priority => $composableBuilder(
+    column: $table.priority,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get done => $composableBuilder(
+    column: $table.done,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get doneAt => $composableBuilder(
+    column: $table.doneAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get sortOrder => $composableBuilder(
+    column: $table.sortOrder,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get deleted => $composableBuilder(
+    column: $table.deleted,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$TasksTableAnnotationComposer
+    extends Composer<_$AppDatabase, $TasksTable> {
+  $$TasksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get notes =>
+      $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get dueDate =>
+      $composableBuilder(column: $table.dueDate, builder: (column) => column);
+
+  GeneratedColumn<int> get dueMinutes => $composableBuilder(
+    column: $table.dueMinutes,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<int> get priority =>
+      $composableBuilder(column: $table.priority, builder: (column) => column);
+
+  GeneratedColumn<bool> get done =>
+      $composableBuilder(column: $table.done, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get doneAt =>
+      $composableBuilder(column: $table.doneAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<int> get sortOrder =>
+      $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get deleted =>
+      $composableBuilder(column: $table.deleted, builder: (column) => column);
+
+  GeneratedColumn<int> get updatedAtMs => $composableBuilder(
+    column: $table.updatedAtMs,
+    builder: (column) => column,
+  );
+}
+
+class $$TasksTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $TasksTable,
+          Task,
+          $$TasksTableFilterComposer,
+          $$TasksTableOrderingComposer,
+          $$TasksTableAnnotationComposer,
+          $$TasksTableCreateCompanionBuilder,
+          $$TasksTableUpdateCompanionBuilder,
+          (Task, BaseReferences<_$AppDatabase, $TasksTable, Task>),
+          Task,
+          PrefetchHooks Function()
+        > {
+  $$TasksTableTableManager(_$AppDatabase db, $TasksTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$TasksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$TasksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$TasksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
+                Value<int?> dueMinutes = const Value.absent(),
+                Value<int> priority = const Value.absent(),
+                Value<bool> done = const Value.absent(),
+                Value<DateTime?> doneAt = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TasksCompanion(
+                id: id,
+                title: title,
+                notes: notes,
+                dueDate: dueDate,
+                dueMinutes: dueMinutes,
+                priority: priority,
+                done: done,
+                doneAt: doneAt,
+                createdAt: createdAt,
+                sortOrder: sortOrder,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String title,
+                Value<String?> notes = const Value.absent(),
+                Value<DateTime?> dueDate = const Value.absent(),
+                Value<int?> dueMinutes = const Value.absent(),
+                Value<int> priority = const Value.absent(),
+                Value<bool> done = const Value.absent(),
+                Value<DateTime?> doneAt = const Value.absent(),
+                required DateTime createdAt,
+                Value<int> sortOrder = const Value.absent(),
+                Value<bool> deleted = const Value.absent(),
+                Value<int> updatedAtMs = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => TasksCompanion.insert(
+                id: id,
+                title: title,
+                notes: notes,
+                dueDate: dueDate,
+                dueMinutes: dueMinutes,
+                priority: priority,
+                done: done,
+                doneAt: doneAt,
+                createdAt: createdAt,
+                sortOrder: sortOrder,
+                deleted: deleted,
+                updatedAtMs: updatedAtMs,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$TasksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $TasksTable,
+      Task,
+      $$TasksTableFilterComposer,
+      $$TasksTableOrderingComposer,
+      $$TasksTableAnnotationComposer,
+      $$TasksTableCreateCompanionBuilder,
+      $$TasksTableUpdateCompanionBuilder,
+      (Task, BaseReferences<_$AppDatabase, $TasksTable, Task>),
+      Task,
+      PrefetchHooks Function()
+    >;
 typedef $$KeyValuesTableCreateCompanionBuilder =
     KeyValuesCompanion Function({
       required String key,
@@ -6049,6 +7083,8 @@ class $AppDatabaseManager {
       $$ChallengeHabitsTableTableManager(_db, _db.challengeHabits);
   $$JournalEntriesTableTableManager get journalEntries =>
       $$JournalEntriesTableTableManager(_db, _db.journalEntries);
+  $$TasksTableTableManager get tasks =>
+      $$TasksTableTableManager(_db, _db.tasks);
   $$KeyValuesTableTableManager get keyValues =>
       $$KeyValuesTableTableManager(_db, _db.keyValues);
 }

@@ -22,6 +22,7 @@ class MergeResult {
       toWriteLocal.challenges.isNotEmpty ||
       toWriteLocal.challengeHabits.isNotEmpty ||
       toWriteLocal.journals.isNotEmpty ||
+      toWriteLocal.tasks.isNotEmpty ||
       toWriteLocal.keyValues.isNotEmpty;
 }
 
@@ -47,6 +48,9 @@ abstract final class VaultMerge {
     final journals = _mergeTable<JournalEntry>(
         local.journals, remote.journals, (j) => j.id, (j) => j.updatedAtMs,
         (j) => j.deleted, VaultCodec.journalJson);
+    final tasks = _mergeTable<Task>(
+        local.tasks, remote.tasks, (t) => t.id, (t) => t.updatedAtMs,
+        (t) => t.deleted, VaultCodec.taskJson);
     final kvs = _mergeTable<KeyValue>(
         local.keyValues, remote.keyValues, (k) => k.key, (k) => k.updatedAtMs,
         (_) => false, VaultCodec.kvJson);
@@ -82,6 +86,7 @@ abstract final class VaultMerge {
       challenges: challenges,
       challengeHabits: links,
       journals: journals,
+      tasks: tasks,
       keyValues: kvs,
     );
 
@@ -94,6 +99,7 @@ abstract final class VaultMerge {
           (l) => l.id, VaultCodec.chLinkJson),
       journals: _diff(merged.journals, local.journals, (j) => j.id,
           VaultCodec.journalJson),
+      tasks: _diff(merged.tasks, local.tasks, (t) => t.id, VaultCodec.taskJson),
       keyValues: _diff(merged.keyValues, local.keyValues, (k) => k.key,
           VaultCodec.kvJson),
     );
@@ -104,6 +110,7 @@ abstract final class VaultMerge {
             _diff(merged.challenges, remote.challenges, (c) => c.id, VaultCodec.challengeJson).isNotEmpty ||
             _diff(merged.challengeHabits, remote.challengeHabits, (l) => l.id, VaultCodec.chLinkJson).isNotEmpty ||
             _diff(merged.journals, remote.journals, (j) => j.id, VaultCodec.journalJson).isNotEmpty ||
+            _diff(merged.tasks, remote.tasks, (t) => t.id, VaultCodec.taskJson).isNotEmpty ||
             _diff(merged.keyValues, remote.keyValues, (k) => k.key, VaultCodec.kvJson).isNotEmpty;
 
     return MergeResult(merged, toLocal, remoteChanged);
