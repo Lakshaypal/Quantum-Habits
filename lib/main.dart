@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'dart:io';
+
+import 'package:window_manager/window_manager.dart';
+
 import 'app.dart';
 import 'core/db/database.dart';
 import 'core/db/mac_data_migration.dart';
@@ -12,6 +16,10 @@ import 'features/research/application/research_providers.dart'
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Desktop: the tray's "Open" action needs the window manager primed.
+  if (Platform.isMacOS || Platform.isWindows || Platform.isLinux) {
+    await windowManager.ensureInitialized();
+  }
   // Move the DB out of the old macOS sandbox container before opening it
   // (v2.2.0 dropped the sandbox so updates can self-install). No-op elsewhere.
   await migrateMacSandboxDataIfNeeded();

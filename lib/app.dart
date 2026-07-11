@@ -6,10 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/notifications/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/tray/tray_service.dart';
 import 'core/theme/theme_prefs.dart';
 import 'core/util/current_day.dart';
 import 'features/habits/application/habit_providers.dart'
-    show activeHabitsProvider, allEntriesProvider, databaseProvider;
+    show
+        activeHabitsProvider,
+        allEntriesProvider,
+        databaseProvider,
+        todayEntriesProvider;
 import 'features/heatmap/application/heatmap_providers.dart';
 import 'features/journal/application/journal_providers.dart';
 import 'features/quotes/quotes.dart';
@@ -65,6 +70,7 @@ class _QuantumHabitsAppState extends ConsumerState<QuantumHabitsApp> {
         unawaited(NotificationService.scheduleHabitReminders(habits));
       }
       _updateWidget();
+      ref.read(trayServiceProvider).refresh();
     });
     // Keep the home-screen widget fresh when completions change.
     ref.listenManual(allEntriesProvider, (_, _) => _updateWidget());
@@ -74,7 +80,15 @@ class _QuantumHabitsAppState extends ConsumerState<QuantumHabitsApp> {
       if (tasks != null) {
         unawaited(NotificationService.scheduleTaskReminders(tasks));
       }
+      ref.read(trayServiceProvider).refresh();
     });
+    // Desktop menu-bar/tray widget: boot it and keep it in step with today.
+    if (TrayService.supported) {
+      Future.delayed(const Duration(seconds: 1),
+          () => ref.read(trayServiceProvider).init());
+      ref.listenManual(todayEntriesProvider,
+          (_, _) => ref.read(trayServiceProvider).refresh());
+    }
     Future.delayed(const Duration(seconds: 3), _updateWidget);
     _lifecycle = AppLifecycleListener(
       onResume: () {

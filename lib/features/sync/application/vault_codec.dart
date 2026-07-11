@@ -96,8 +96,13 @@ abstract final class VaultCodec {
     return DateTime(int.parse(p[0]), int.parse(p[1]), int.parse(p[2]));
   }
 
-  static Uint8List encode(VaultData v) {
-    final json = jsonEncode({
+  static Uint8List encode(VaultData v) =>
+      Uint8List.fromList(gzip.encode(utf8.encode(encodeJson(v))));
+
+  /// The vault as plain JSON — also the user-facing export format (journal
+  /// bodies remain AES-256-GCM ciphertext inside it).
+  static String encodeJson(VaultData v) {
+    return jsonEncode({
       'v': version,
       'habits': v.habits.map(habitJson).toList(),
       'entries': v.entries.map(entryJson).toList(),
@@ -114,7 +119,6 @@ abstract final class VaultCodec {
           if (!kLocalOnlyKeys.contains(kv.key)) kvJson(kv)
       ],
     });
-    return Uint8List.fromList(gzip.encode(utf8.encode(json)));
   }
 
   static VaultData decode(Uint8List bytes) {

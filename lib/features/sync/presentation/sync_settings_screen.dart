@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -14,6 +15,7 @@ import '../../updates/update_prompt.dart';
 import '../../updates/update_service.dart';
 import '../application/oauth_defaults.dart';
 import '../application/sync_engine.dart';
+import '../application/vault_codec.dart';
 
 const _ok = Color(0xFF34D399);
 const _warn = Color(0xFFFBBF24);
@@ -96,6 +98,8 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
                 ..._buildConnect(t, engine)
               else
                 ..._buildConnected(t, status, engine),
+              const SizedBox(height: Insets.xl),
+              ..._buildData(t),
               const SizedBox(height: Insets.xl),
               ..._buildQuotes(t),
               const SizedBox(height: Insets.xl),
@@ -254,6 +258,56 @@ class _SyncSettingsScreenState extends ConsumerState<SyncSettingsScreen> {
                   style: t.bodyMedium?.copyWith(color: AppColors.muted))),
         ),
       ];
+
+  List<Widget> _buildData(TextTheme t) => [
+        Text('YOUR DATA', style: t.labelSmall),
+        const SizedBox(height: Insets.sm),
+        GlassCard(
+          onTap: _busy ? null : () => _run(_exportData),
+          padding: const EdgeInsets.all(Insets.md),
+          child: Row(children: [
+            const Icon(Icons.download_outlined,
+                size: 18, color: AppColors.muted),
+            const SizedBox(width: Insets.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Export everything (JSON)', style: t.bodyMedium),
+                  Text(
+                      'Habits, tasks, challenges, journal (still encrypted) — '
+                      'yours to keep.',
+                      style: t.bodySmall),
+                ],
+              ),
+            ),
+          ]),
+        ),
+      ];
+
+  Future<void> _exportData() async {
+    final db = ref.read(databaseProvider);
+    final data = await VaultData.fromDb(db);
+    final dir = await getApplicationDocumentsDirectory();
+    final now = DateTime.now();
+    final stamp =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final file = File('${dir.path}/quantum-habits-export-$stamp.json');
+    await file.writeAsString(VaultCodec.encodeJson(data), flush: true);
+    // Reveal it where the platform allows.
+    if (Platform.isMacOS) {
+      await Process.run('open', ['-R', file.path]);
+    } else if (Platform.isWindows) {
+      await Process.run('explorer', ['/select,', file.path]);
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Exported to ${file.path}'),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: AppColors.graphiteHi,
+      ));
+    }
+  }
 
   List<Widget> _buildQuotes(TextTheme t) {
     final cats = ref.watch(quoteCategoriesProvider);
