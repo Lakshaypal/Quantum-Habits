@@ -11,15 +11,15 @@ An offline-first Flutter application for habit tracking, daily planning and refl
 - Optional Google Drive app-data sync with per-record conflict merging.
 - Desktop tray integration, Android widget support and a GitHub-release update checker.
 
-Platform support varies by feature. The repository contains Android, macOS, Windows and iOS project scaffolding; published downloads are maintained separately in [quantum-habits-releases](https://github.com/Lakshaypal/quantum-habits-releases/releases).
+Platform support varies by feature. The repository contains Android, macOS, Windows and iOS project scaffolding; published downloads are maintained separately in [quantum-habits-releases](https://github.com/Lakshaypal/Quantum-Habits-Releases/releases).
 
 ## Development
 
 Install Flutter with Dart compatible with the `pubspec.yaml` constraint (Dart 3.12.2 or newer within the supported major version):
 
 ```sh
-git clone https://github.com/Lakshaypal/quantum-habits.git
-cd quantum-habits
+git clone https://github.com/Lakshaypal/Quantum-Habits.git
+cd Quantum-Habits
 flutter pub get
 dart run build_runner build --delete-conflicting-outputs
 flutter test
